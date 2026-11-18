@@ -24,9 +24,9 @@ export default function Listings() {
   return (
     <div className="space-y-6">
       <PageHeader
-        kicker="Personal Shopper Workflow"
-        title="Service Listings"
-        description="Approve, pause, or review flagged personal shopper service packages across all categories."
+        kicker="Trust & Profiles"
+        title="Verified Shopper Profiles"
+        description="Verify that personal shopper specialty profiles and declared sourcing channels comply with PSSA safety policies."
       />
 
       <div className="flex flex-wrap gap-1.5">
@@ -65,12 +65,13 @@ export default function Listings() {
               </div>
               <h2 className="mt-3 text-base font-bold text-navy">{item.title}</h2>
               <p className="mt-1 text-xs text-muted">
-                Shopper: <strong className="text-navy">{item.shopperName}</strong> · {item.city} · Turnaround: {item.turnaround}
+                Shopper: <strong className="text-navy">{item.shopperName}</strong> · {item.city}
               </p>
+              <p className="mt-2.5 text-xs leading-relaxed text-ink">{item.specialtySummary}</p>
             </div>
 
             <div className="mt-4 flex items-center justify-between border-t border-line pt-3.5">
-              <p className="text-sm font-bold text-navy">From R {item.baseFeeZar.toLocaleString()}</p>
+              <p className="text-[11px] font-medium text-muted">Added {item.createdAt}</p>
               <div className="flex gap-2">
                 {item.status !== "ACTIVE" && (
                   <button
@@ -78,7 +79,7 @@ export default function Listings() {
                     onClick={() => setStatus(item.id, "ACTIVE")}
                     className="rounded-lg bg-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-dark"
                   >
-                    Approve
+                    Verify Profile
                   </button>
                 )}
                 {item.status !== "PAUSED" && (
