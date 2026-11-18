@@ -319,7 +319,6 @@ export function AdminLayout() {
       try {
         localStorage.setItem("pssa_sidebar_collapsed", String(next));
       } catch {
-        // ignore storage errors
       }
       return next;
     });

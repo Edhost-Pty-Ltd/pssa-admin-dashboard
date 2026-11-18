@@ -3536,7 +3536,6 @@ td small {
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15) 60%, transparent);
 }
 
-/* Elevate all rounded-2xl white cards inside the admin canvas to frosted glass */
 .admin-main-content .rounded-2xl.bg-white {
   background-color: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(18px);
