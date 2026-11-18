@@ -1,9 +1,35 @@
-export type ApplicationStatus = "PENDING" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "INFO_REQUESTED";
+export type ApplicationStatus =
+  | "INCOMPLETE"
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "INFO_REQUIRED"
+  | "VERIFIED"
+  | "SUSPENDED"
+  | "REJECTED";
+
+export type VerificationDecision =
+  | "UNDER_REVIEW"
+  | "INFO_REQUIRED"
+  | "APPROVED"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "REINSTATED";
+
+export type TrialStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "CHANGES_REQUESTED";
+export type DocumentStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 export type MemberStatus = "ACTIVE" | "SUSPENDED" | "PROBATION";
 export type MemberTier = "FOUNDING" | "VERIFIED" | "ASSOCIATE";
+export type CustomerStatus = "ACTIVE" | "SUSPENDED";
 export type ListingStatus = "ACTIVE" | "PENDING" | "PAUSED" | "FLAGGED";
-export type BookingStatus = "REQUESTED" | "IN_PROGRESS" | "DELIVERED" | "COMPLETED" | "DISPUTED" | "CANCELLED";
 export type CaseStatus = "OPEN" | "INVESTIGATING" | "ESCALATED" | "RESOLVED";
+
+export type ApplicationDocType =
+  | "id_document"
+  | "proof_of_residence"
+  | "business_registration"
+  | "bank_evidence"
+  | "channel_evidence"
+  | "references";
 
 export interface ServiceCategory {
   id: string;
@@ -20,10 +46,59 @@ export interface ServiceCategory {
 
 export interface ApplicationDocument {
   id: string;
+  type: ApplicationDocType;
   label: string;
   fileName: string;
+  status: DocumentStatus;
   verified: boolean;
+  reviewerNote?: string;
+  sizeBytes?: number;
   uploadedAt: string;
+}
+
+export interface VerificationChannel {
+  id: string;
+  platform: string;
+  handle: string;
+  confirmed: boolean;
+}
+
+export interface AssessmentAttempt {
+  id: string;
+  startedAt: string;
+  submittedAt: string | null;
+  score: number;
+  total: number;
+  passed: boolean;
+}
+
+export interface TrialVideo {
+  id: string;
+  status: "SUBMITTED" | "APPROVED" | "CHANGES_REQUESTED";
+  durationSeconds: number;
+  sizeBytes: number;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewer?: string;
+  reviewerNote?: string;
+  scenarioPrompt: string;
+}
+
+export interface ProviderTrialData {
+  status: TrialStatus;
+  lessonsCompleted: number;
+  lessonsTotal: number;
+  conditionsAcceptedAt: string | null;
+  scenarioPrompt: string;
+  videos: TrialVideo[];
+}
+
+export interface DecisionRecord {
+  id: string;
+  decision: VerificationDecision;
+  reason?: string;
+  reviewer: string;
+  createdAt: string;
 }
 
 export interface VerificationApplication {
@@ -39,10 +114,27 @@ export interface VerificationApplication {
   categories: string[];
   yearsExperience: number;
   saIdLast4: string;
+  bio: string;
+  skills: string[];
+  languages: string[];
+  serviceAreas: string[];
   status: ApplicationStatus;
-  submittedAt: string;
+  statusFeedback?: string;
+  certificateNumber?: string;
+  verificationExpiresAt?: string;
+  submittedAt: string | null;
+  createdAt: string;
   reviewerNotes: string;
+  completionPercent: number;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  conductAcceptedAt: string | null;
+  conductVersion: string | null;
   documents: ApplicationDocument[];
+  channels: VerificationChannel[];
+  assessments: AssessmentAttempt[];
+  trial: ProviderTrialData;
+  decisions: DecisionRecord[];
 }
 
 export interface MemberRecord {
@@ -55,8 +147,20 @@ export interface MemberRecord {
   tier: MemberTier;
   status: MemberStatus;
   categories: string[];
-  completedRuns: number;
+  verifiedChecks: number;
   rating: number;
+  joinedAt: string;
+}
+
+export interface CustomerMemberRecord {
+  id: string;
+  customerCode: string;
+  fullName: string;
+  email: string;
+  city: string;
+  policyAccepted: boolean;
+  status: CustomerStatus;
+  shopperLookups: number;
   joinedAt: string;
 }
 
@@ -67,24 +171,9 @@ export interface ListingRecord {
   categoryId: string;
   categoryName: string;
   city: string;
-  baseFeeZar: number;
-  turnaround: string;
+  specialtySummary: string;
   status: ListingStatus;
   createdAt: string;
-}
-
-export interface BookingRecord {
-  id: string;
-  reference: string;
-  clientName: string;
-  shopperName: string;
-  categoryName: string;
-  city: string;
-  estimatedBudgetZar: number;
-  serviceFeeZar: number;
-  status: BookingStatus;
-  scheduledFor: string;
-  notes: string;
 }
 
 export interface CaseRecord {
@@ -93,7 +182,7 @@ export interface CaseRecord {
   reporterName: string;
   reporterEmail: string;
   againstMember: string;
-  bookingReference?: string;
+  reportedChannel?: string;
   category: string;
   severity: "LOW" | "MEDIUM" | "HIGH";
   status: CaseStatus;
@@ -117,7 +206,7 @@ export interface AuditEntry {
   actor: string;
   action: string;
   target: string;
-  category: "VERIFICATION" | "CATEGORY" | "MEMBER" | "CASE" | "LISTING" | "SETTINGS";
+  category: "VERIFICATION" | "CATEGORY" | "MEMBER" | "CUSTOMER" | "CASE" | "LISTING" | "SETTINGS";
   timestamp: string;
 }
 

@@ -5,18 +5,23 @@ import { Badge, PageHeader, statusTone } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
 import type { ApplicationStatus, VerificationApplication } from "../types/admin";
 
-const FILTERS: { label: string; value: "ALL" | ApplicationStatus }[] = [
-  { label: "All", value: "ALL" },
+type FilterValue = "QUEUE" | "ALL" | ApplicationStatus;
+
+const FILTERS: { label: string; value: FilterValue }[] = [
+  { label: "Review queue", value: "QUEUE" },
   { label: "Pending", value: "PENDING" },
-  { label: "Under Review", value: "UNDER_REVIEW" },
-  { label: "Info Requested", value: "INFO_REQUESTED" },
-  { label: "Approved", value: "APPROVED" },
+  { label: "Under review", value: "UNDER_REVIEW" },
+  { label: "Info required", value: "INFO_REQUIRED" },
+  { label: "Verified", value: "VERIFIED" },
+  { label: "Suspended", value: "SUSPENDED" },
   { label: "Rejected", value: "REJECTED" },
+  { label: "Incomplete", value: "INCOMPLETE" },
+  { label: "All", value: "ALL" },
 ];
 
 export default function Verifications() {
   const [apps, setApps] = useState<VerificationApplication[]>([]);
-  const [filter, setFilter] = useState<"ALL" | ApplicationStatus>("ALL");
+  const [filter, setFilter] = useState<FilterValue>("QUEUE");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -24,7 +29,12 @@ export default function Verifications() {
   }, []);
 
   const visible = apps.filter((a) => {
-    const matchesStatus = filter === "ALL" || a.status === filter;
+    const matchesStatus =
+      filter === "ALL"
+        ? true
+        : filter === "QUEUE"
+          ? a.status === "PENDING" || a.status === "UNDER_REVIEW" || a.status === "INFO_REQUIRED"
+          : a.status === filter;
     const q = search.toLowerCase();
     const matchesQuery =
       !q ||
@@ -39,8 +49,8 @@ export default function Verifications() {
     <div className="space-y-6">
       <PageHeader
         kicker="Membership Vetting"
-        title="Shopper Verifications"
-        description="Review ID checks, proof of residence, and category experience before issuing a PSSA verified badge."
+        title="Shopper Verification"
+        description="Review submissions, check evidence, assess trial videos, and record reasoned decisions. A shopper is listed publicly only after approval."
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -50,9 +60,9 @@ export default function Verifications() {
               key={f.value}
               type="button"
               onClick={() => setFilter(f.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                 filter === f.value
-                  ? "bg-navy text-white"
+                  ? "bg-navy text-white shadow-xs"
                   : "border border-line bg-white text-muted hover:text-navy"
               }`}
             >
@@ -73,62 +83,57 @@ export default function Verifications() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-line bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line bg-soft text-xs font-semibold uppercase tracking-wider text-muted">
-              <tr>
-                <th className="px-5 py-3.5">Applicant</th>
-                <th className="px-5 py-3.5">Primary Category</th>
-                <th className="px-5 py-3.5">Location</th>
-                <th className="px-5 py-3.5">Docs Verified</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((app) => {
-                const verifiedCount = app.documents.filter((d) => d.verified).length;
-                return (
-                  <tr key={app.id} className="hover:bg-soft/50">
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-navy">{app.applicantName}</p>
-                      <p className="text-xs text-muted">
-                        {app.businessName} · {app.referenceCode}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4 text-xs font-medium text-navy">{app.primaryCategory}</td>
-                    <td className="px-5 py-4 text-xs text-muted">
-                      {app.city}, {app.province}
-                    </td>
-                    <td className="px-5 py-4 text-xs font-semibold text-navy">
-                      {verifiedCount} / {app.documents.length}
-                    </td>
-                    <td className="px-5 py-4">
-                      <Badge tone={statusTone(app.status)}>{app.status.replace("_", " ")}</Badge>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        to={`/admin/verifications/${app.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:bg-soft"
-                      >
-                        Review
-                        <Icon name="chevron" size={14} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-              {visible.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted">
-                    No applications match your filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="space-y-3">
+        {visible.map((app) => {
+          const assessmentPassed = app.assessments.some((a) => a.passed);
+          return (
+            <Link
+              key={app.id}
+              to={`/admin/verifications/${app.id}`}
+              className="group flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 transition hover:-translate-y-0.5 hover:border-green/40 hover:shadow-md sm:flex-row sm:items-center"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-bold text-navy group-hover:text-green-dark">{app.applicantName}</p>
+                  <span className="text-xs text-muted">· {app.businessName}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted">
+                  {app.referenceCode} · {app.email} · {app.city}, {app.province}
+                </p>
+                <p className="mt-1 text-xs text-navy/70">{app.categories.join(" · ")}</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <Badge tone="muted">{app.documents.length} docs</Badge>
+                <Badge tone={assessmentPassed ? "green" : "muted"}>
+                  {assessmentPassed ? "Assessment passed" : "No pass yet"}
+                </Badge>
+                <Badge tone={statusTone(app.trial.status)}>
+                  Trial: {app.trial.status.toLowerCase().replace("_", " ")}
+                </Badge>
+                <Badge tone={app.completionPercent === 100 ? "green" : "amber"}>{app.completionPercent}%</Badge>
+                <Badge tone={statusTone(app.status)}>{app.status.replace("_", " ")}</Badge>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 text-xs text-muted sm:w-36 sm:justify-end">
+                <span>
+                  {app.submittedAt
+                    ? `Submitted ${app.submittedAt.slice(0, 10)}`
+                    : app.verificationExpiresAt
+                      ? `Expires ${app.verificationExpiresAt.slice(0, 10)}`
+                      : `Joined ${app.createdAt.slice(0, 10)}`}
+                </span>
+                <Icon name="chevron" size={15} className="text-muted transition group-hover:translate-x-0.5 group-hover:text-green" />
+              </div>
+            </Link>
+          );
+        })}
+
+        {visible.length === 0 && (
+          <div className="rounded-2xl border border-line bg-white p-10 text-center text-sm text-muted">
+            No applications match this filter.
+          </div>
+        )}
       </div>
     </div>
   );

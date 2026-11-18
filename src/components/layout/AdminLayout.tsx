@@ -21,12 +21,11 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     ],
   },
   {
-    heading: "Shopper Workflow",
+    heading: "Trust & Profiles",
     items: [
       { to: "/admin/categories", label: "Categories", icon: "categories" },
-      { to: "/admin/listings", label: "Listings", icon: "listings" },
-      { to: "/admin/bookings", label: "Bookings", icon: "receipt" },
-      { to: "/admin/complaints", label: "Cases & Complaints", icon: "flag" },
+      { to: "/admin/listings", label: "Shopper Profiles", icon: "listings" },
+      { to: "/admin/complaints", label: "Cases & Safety", icon: "flag" },
     ],
   },
   {
@@ -69,20 +68,11 @@ function getAmbientProfile(pathname: string): AmbientProfile {
   }
   if (pathname.startsWith("/admin/categories") || pathname.startsWith("/admin/listings")) {
     return {
-      label: "Curated Verticals",
-      section: pathname.includes("listings") ? "Listings" : "Categories",
+      label: "Verified Specialties",
+      section: pathname.includes("listings") ? "Shopper Profiles" : "Categories",
       primary: "rgba(24, 162, 105, 0.15)",
       secondary: "rgba(239, 230, 212, 0.62)",
       tertiary: "rgba(16, 42, 70, 0.05)",
-    };
-  }
-  if (pathname.startsWith("/admin/bookings")) {
-    return {
-      label: "Concierge & Sourcing Runs",
-      section: "Bookings",
-      primary: "rgba(24, 162, 105, 0.13)",
-      secondary: "rgba(239, 230, 212, 0.58)",
-      tertiary: "rgba(11, 32, 55, 0.07)",
     };
   }
   if (pathname.startsWith("/admin/complaints")) {
@@ -254,28 +244,6 @@ function SidebarContent({
           collapsed ? "p-2.5" : "p-4"
         }`}
       >
-        <Link
-          to="/figma-reference"
-          onClick={onNavigate}
-          onMouseEnter={(e) => showTooltip(e, "Figma Screens Reference")}
-          onMouseLeave={hideTooltip}
-          onFocus={(e) => showTooltip(e, "Figma Screens Reference")}
-          onBlur={hideTooltip}
-          aria-label="Figma Screens Reference"
-          className={`flex items-center rounded-2xl border border-white/12 bg-white/6 text-xs font-semibold text-white/85 transition hover:border-green/45 hover:bg-white/12 hover:text-white ${
-            collapsed ? "justify-center p-2.5" : "justify-between px-3.5 py-2.5"
-          }`}
-        >
-          {collapsed ? (
-            <Icon name="eye" size={16} className="text-sand" />
-          ) : (
-            <>
-              <span>Figma Screens Reference</span>
-              <Icon name="arrow" size={14} className="text-sand" />
-            </>
-          )}
-        </Link>
-
         <Link
           to="/login"
           onClick={onNavigate}

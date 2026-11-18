@@ -4,8 +4,8 @@ import { Icon, type IconName } from "../components/Icon";
 import { Badge, statusTone } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
 import type {
-  BookingRecord,
   CaseRecord,
+  CustomerMemberRecord,
   ListingRecord,
   MemberRecord,
   ServiceCategory,
@@ -16,7 +16,7 @@ interface OverviewData {
   applications: VerificationApplication[];
   categories: ServiceCategory[];
   members: MemberRecord[];
-  bookings: BookingRecord[];
+  customers: CustomerMemberRecord[];
   cases: CaseRecord[];
   listings: ListingRecord[];
 }
@@ -35,6 +35,22 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function gateSummary(app: VerificationApplication): string {
+  const docsReady =
+    app.documents.some((d) => d.type === "id_document" && d.status === "ACCEPTED") &&
+    app.documents.some((d) => (d.type === "proof_of_residence" || d.type === "business_registration") && d.status === "ACCEPTED") &&
+    app.documents.some((d) => d.type === "bank_evidence" && d.status === "ACCEPTED");
+  const channelReady = app.channels.some((c) => c.confirmed);
+  const assessmentPassed = app.assessments.some((a) => a.passed);
+  const trialApproved = app.trial.status === "APPROVED";
+  const passedCount =
+    (docsReady && channelReady ? 1 : 0) +
+    (app.conductAcceptedAt && app.emailVerifiedAt && app.phoneVerifiedAt ? 1 : 0) +
+    (assessmentPassed ? 1 : 0) +
+    (trialApproved ? 1 : 0);
+  return `${passedCount}/4 gates`;
 }
 
 export default function Overview() {
@@ -60,8 +76,8 @@ export default function Overview() {
   const pendingApps = data.applications.filter((a) => a.status === "PENDING" || a.status === "UNDER_REVIEW");
   const activeCategories = data.categories.filter((c) => c.isActive);
   const activeMembers = data.members.filter((m) => m.status === "ACTIVE");
+  const activeCustomers = data.customers.filter((c) => c.status === "ACTIVE");
   const openCases = data.cases.filter((c) => c.status !== "RESOLVED");
-  const totalRunVolume = data.bookings.reduce((sum, b) => sum + b.estimatedBudgetZar, 0);
 
   const maxListingCount = Math.max(1, ...data.categories.map((c) => c.listingCount + c.providerCount));
 
@@ -79,7 +95,7 @@ export default function Overview() {
     {
       label: "Pending Verifications",
       value: pendingApps.length,
-      sub: `${data.applications.length} total applications`,
+      sub: `${data.applications.length} total shopper applications`,
       to: "/admin/verifications",
       icon: "shield",
       iconBg: "bg-green-soft text-green-dark",
@@ -88,31 +104,31 @@ export default function Overview() {
       accent: "text-navy",
     },
     {
-      label: "Active Categories",
-      value: activeCategories.length,
-      sub: `${data.categories.length} sourcing verticals`,
-      to: "/admin/categories",
-      icon: "categories",
+      label: "Verified Shoppers",
+      value: activeMembers.length,
+      sub: `${data.listings.length} verified specialty profiles`,
+      to: "/admin/users",
+      icon: "badge",
       iconBg: "bg-sand/70 text-navy",
       barColor: "bg-navy",
-      barPct: Math.min(100, Math.round((activeCategories.length / Math.max(1, data.categories.length)) * 100)),
+      barPct: Math.min(100, Math.round((activeMembers.length / Math.max(1, data.members.length)) * 100)),
       accent: "text-green-dark",
     },
     {
-      label: "Verified Members",
-      value: activeMembers.length,
-      sub: `${data.listings.length} active & pending listings`,
+      label: "Customer Members",
+      value: activeCustomers.length,
+      sub: `${data.customers.reduce((s, c) => s + c.shopperLookups, 0)} verified shopper lookups`,
       to: "/admin/users",
       icon: "people",
       iconBg: "bg-[#eaf3fb] text-navy-2",
       barColor: "bg-navy-3",
-      barPct: Math.min(100, Math.round((activeMembers.length / Math.max(1, data.members.length)) * 100)),
+      barPct: Math.min(100, Math.round((activeCustomers.length / Math.max(1, data.customers.length)) * 100)),
       accent: "text-navy",
     },
     {
-      label: "Open Cases",
+      label: "Safety & Policy Cases",
       value: openCases.length,
-      sub: `${data.bookings.length} recent shopping runs`,
+      sub: `${activeCategories.length} active shopper verticals`,
       to: "/admin/complaints",
       icon: "flag",
       iconBg: openCases.length > 0 ? "bg-[#fff0ef] text-[#b42318]" : "bg-green-soft text-green-dark",
@@ -140,28 +156,28 @@ export default function Overview() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sand">
               <span className="h-1.5 w-1.5 rounded-full bg-green" />
-              {getGreeting()} · PSSA Executive Desk
+              {getGreeting()} · PSSA Trust &amp; Safety Desk
             </div>
             <h1 className="mt-3.5 font-display text-2xl font-semibold tracking-tight text-white sm:text-[34px] sm:leading-[1.12]">
-              Curated Operations &amp; <span className="text-sand">Member Vetting</span>
+              Shopper Verification &amp; <span className="text-sand">Scam Prevention</span>
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">
-              Oversee personal shopper accreditation, active sourcing verticals, live concierge runs, and consumer protection in one calm workspace.
+              Verify personal shopper identities, enforce 4-gate accreditation, and ensure customer members safely view authenticated provider profiles.
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Active Run Volume</p>
-                <p className="font-display text-base font-semibold text-sand">R {totalRunVolume.toLocaleString()}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Verified Shoppers</p>
+                <p className="font-display text-base font-semibold text-sand">{activeMembers.length} active providers</p>
               </div>
               <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Vetting Queue</p>
                 <p className="font-display text-base font-semibold text-white">{pendingApps.length} awaiting review</p>
               </div>
               <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Active Verticals</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Customer Members</p>
                 <p className="font-display text-base font-semibold text-[#8bdbb8]">
-                  {activeCategories.length} of {data.categories.length} live
+                  {activeCustomers.length} policy-verified
                 </p>
               </div>
             </div>
@@ -169,11 +185,11 @@ export default function Overview() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              to="/admin/categories"
+              to="/admin/users"
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white/16"
             >
-              <Icon name="categories" size={16} className="text-sand" />
-              Manage Categories
+              <Icon name="people" size={16} className="text-sand" />
+              Member Directory
             </Link>
             <Link
               to="/admin/verifications"
@@ -198,7 +214,9 @@ export default function Overview() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted">{s.label}</p>
                 <p className={`mt-2 font-display text-3xl font-bold ${s.accent}`}>{s.value}</p>
               </div>
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.iconBg} transition-transform duration-200 group-hover:scale-105`}>
+              <span
+                className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.iconBg} transition-transform duration-200 group-hover:scale-105`}
+              >
                 <Icon name={s.icon} size={18} />
               </span>
             </div>
@@ -219,8 +237,8 @@ export default function Overview() {
         <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-7">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Membership Pipeline</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Verification Queue</h2>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">4-Gate Accreditation</p>
+              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Shopper Verification Queue</h2>
             </div>
             <Link
               to="/admin/verifications"
@@ -238,7 +256,7 @@ export default function Overview() {
                 to={`/admin/verifications/${app.id}`}
                 className="group flex flex-col justify-between gap-3 rounded-xl border border-line/70 bg-soft/45 p-3.5 transition-all hover:border-green/35 hover:bg-white hover:shadow-sm sm:flex-row sm:items-center"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex min-w-0 items-center gap-3.5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sand to-sand-dark/60 font-display text-xs font-bold text-navy ring-2 ring-white">
                     {initials(app.applicantName)}
                   </div>
@@ -248,13 +266,17 @@ export default function Overview() {
                       <span className="truncate text-xs text-muted">· {app.businessName}</span>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted">
-                      {app.referenceCode} · {app.primaryCategory} · {app.city}
+                      {app.referenceCode} · {app.primaryCategory} · {gateSummary(app)}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 sm:justify-end">
                   <Badge tone={statusTone(app.status)}>{app.status.replace("_", " ")}</Badge>
-                  <Icon name="arrow" size={14} className="text-muted opacity-0 transition group-hover:translate-x-0.5 group-hover:text-green group-hover:opacity-100" />
+                  <Icon
+                    name="arrow"
+                    size={14}
+                    className="text-muted opacity-0 transition group-hover:translate-x-0.5 group-hover:text-green group-hover:opacity-100"
+                  />
                 </div>
               </Link>
             ))}
@@ -264,7 +286,7 @@ export default function Overview() {
         <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Market Density</p>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Verified Specialties</p>
               <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Shopper Verticals</h2>
             </div>
             <Link
@@ -296,7 +318,7 @@ export default function Overview() {
                       />
                     </div>
                     <span className="shrink-0 text-[11px] font-medium text-muted">
-                      {cat.providerCount} shoppers · {cat.listingCount} listings
+                      {cat.providerCount} verified shoppers
                     </span>
                   </div>
                 </div>
@@ -310,40 +332,38 @@ export default function Overview() {
         <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-7">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Concierge Activity</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Recent Shopping Runs</h2>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Customer Access &amp; Safety</p>
+              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Customer Members</h2>
             </div>
             <Link
-              to="/admin/bookings"
+              to="/admin/users"
               className="inline-flex items-center gap-1.5 rounded-full border border-line bg-soft/70 px-3 py-1 text-xs font-semibold text-navy transition hover:border-green/40 hover:bg-green-soft/60 hover:text-green-dark"
             >
-              All bookings
+              Manage members
               <Icon name="arrow" size={13} />
             </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {data.bookings.map((b) => (
+            {data.customers.map((c) => (
               <div
-                key={b.id}
+                key={c.id}
                 className="flex flex-col justify-between rounded-xl border border-line/80 bg-soft/45 p-4 transition hover:border-green/35 hover:bg-white hover:shadow-sm"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-bold tracking-wide text-navy">{b.reference}</span>
-                    <Badge tone={statusTone(b.status)}>{b.status.replace("_", " ")}</Badge>
+                    <span className="text-xs font-bold tracking-wide text-navy">{c.customerCode}</span>
+                    <Badge tone={c.policyAccepted ? "green" : "amber"}>
+                      {c.policyAccepted ? "Policy OK" : "Pending"}
+                    </Badge>
                   </div>
-                  <p className="mt-2 font-semibold text-navy">{b.clientName}</p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {b.categoryName} · {b.shopperName}
-                  </p>
+                  <p className="mt-2 font-semibold text-navy">{c.fullName}</p>
+                  <p className="mt-0.5 text-xs text-muted">{c.email}</p>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-line/70 pt-3">
-                  <span className="text-[11px] font-medium text-muted">{b.city}</span>
-                  <span className="font-display text-base font-bold text-navy">
-                    R {b.estimatedBudgetZar.toLocaleString()}
-                  </span>
+                  <span className="text-[11px] font-medium text-muted">{c.city}</span>
+                  <span className="text-xs font-semibold text-navy">{c.shopperLookups} shopper lookups</span>
                 </div>
               </div>
             ))}
@@ -353,8 +373,8 @@ export default function Overview() {
         <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Trust &amp; Safety</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Consumer Cases</h2>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Scam Prevention</p>
+              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Safety &amp; Policy Cases</h2>
             </div>
             <Link
               to="/admin/complaints"

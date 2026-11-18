@@ -33,8 +33,8 @@ export default function Complaints() {
     <div className="space-y-6">
       <PageHeader
         kicker="Consumer Protection"
-        title="Cases & Complaints"
-        description="Investigate disputed runs, delivery issues, and impersonation reports raised from the PSSA public portal."
+        title="Cases & Safety Reports"
+        description="Investigate policy breaches, scam alerts, and impersonation reports to keep customers and verified shoppers safe."
       />
 
       <div className="space-y-4">
@@ -63,7 +63,7 @@ export default function Complaints() {
             <p className="mt-3 text-sm text-ink">{c.summary}</p>
             <p className="mt-2 text-xs text-muted">
               Against: <strong className="text-navy">{c.againstMember}</strong>
-              {c.bookingReference ? ` · Booking: ${c.bookingReference}` : ""}
+              {c.reportedChannel ? ` · Channel: ${c.reportedChannel}` : ""}
             </p>
             {c.resolutionNotes && (
               <div className="mt-3 rounded-xl border border-line bg-soft px-3.5 py-2.5 text-xs text-navy">

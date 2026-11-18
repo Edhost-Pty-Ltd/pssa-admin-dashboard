@@ -39,6 +39,9 @@ export function statusTone(status: string): Tone {
       return "blue";
     case "PENDING":
     case "INFO_REQUESTED":
+    case "INFO_REQUIRED":
+    case "CHANGES_REQUESTED":
+    case "IN_PROGRESS":
     case "PROBATION":
     case "PAUSED":
     case "ASSOCIATE":
@@ -52,6 +55,9 @@ export function statusTone(status: string): Tone {
     case "OPEN":
     case "HIGH":
       return "red";
+    case "INCOMPLETE":
+    case "NOT_STARTED":
+      return "muted";
     default:
       return "muted";
   }
