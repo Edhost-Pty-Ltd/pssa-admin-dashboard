@@ -2,7 +2,6 @@ import {
   initialApplications,
   initialAuditLogs,
   initialCases,
-  initialCategories,
   initialCustomers,
   initialListings,
   initialMembers,
@@ -25,7 +24,6 @@ import type {
   MemberRecord,
   MemberStatus,
   NotificationItem,
-  ServiceCategory,
   TutorialRecord,
   VerificationApplication,
   VerificationDecision,
@@ -40,7 +38,6 @@ import { api } from "./api";
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== "false";
 
 let store = {
-  categories: structuredClone(initialCategories),
   applications: structuredClone(initialApplications),
   members: structuredClone(initialMembers),
   customers: structuredClone(initialCustomers),
@@ -73,7 +70,6 @@ export const adminApi = {
     if (!USE_MOCK_API) {
       return api<{
         applications: VerificationApplication[];
-        categories: ServiceCategory[];
         members: MemberRecord[];
         customers: CustomerMemberRecord[];
         cases: CaseRecord[];
@@ -82,65 +78,11 @@ export const adminApi = {
     }
     return {
       applications: store.applications,
-      categories: store.categories,
       members: store.members,
       customers: store.customers,
       cases: store.cases,
       listings: store.listings,
     };
-  },
-
-  async listCategories(): Promise<ServiceCategory[]> {
-    if (!USE_MOCK_API) return api<ServiceCategory[]>("/admin/categories");
-    return [...store.categories].sort((a, b) => a.sortOrder - b.sortOrder);
-  },
-
-  async saveCategory(
-    input: Omit<ServiceCategory, "id" | "providerCount" | "listingCount"> & { id?: string },
-  ): Promise<ServiceCategory> {
-    if (!USE_MOCK_API) {
-      return api<ServiceCategory>(input.id ? `/admin/categories/${input.id}` : "/admin/categories", {
-        method: input.id ? "PATCH" : "POST",
-        body: input,
-      });
-    }
-    if (input.id) {
-      store.categories = store.categories.map((c) => (c.id === input.id ? { ...c, ...input } : c));
-      recordAudit("Updated service category", input.name, "CATEGORY");
-      return store.categories.find((c) => c.id === input.id)!;
-    }
-    const created: ServiceCategory = {
-      ...input,
-      id: `cat-${Date.now()}`,
-      providerCount: 0,
-      listingCount: 0,
-    };
-    store.categories = [...store.categories, created];
-    recordAudit("Created service category", created.name, "CATEGORY");
-    return created;
-  },
-
-  async toggleCategory(id: string): Promise<void> {
-    if (!USE_MOCK_API) {
-      const target = store.categories.find((c) => c.id === id);
-      await api(`/admin/categories/${id}`, { method: "PATCH", body: { isActive: !target?.isActive } });
-      return;
-    }
-    store.categories = store.categories.map((c) => {
-      if (c.id !== id) return c;
-      recordAudit(c.isActive ? "Deactivated category" : "Activated category", c.name, "CATEGORY");
-      return { ...c, isActive: !c.isActive };
-    });
-  },
-
-  async deleteCategory(id: string): Promise<void> {
-    if (!USE_MOCK_API) {
-      await api(`/admin/categories/${id}`, { method: "DELETE" });
-      return;
-    }
-    const target = store.categories.find((c) => c.id === id);
-    store.categories = store.categories.filter((c) => c.id !== id);
-    if (target) recordAudit("Deleted category", target.name, "CATEGORY");
   },
 
   async listApplications(): Promise<VerificationApplication[]> {

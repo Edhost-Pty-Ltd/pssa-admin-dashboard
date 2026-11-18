@@ -1,7 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import Audit from "./pages/Audit";
-import Categories from "./pages/Categories";
 import Complaints from "./pages/Complaints";
 import Listings from "./pages/Listings";
 import Login from "./pages/Login";
@@ -25,7 +24,6 @@ export default function App() {
           <Route path="verifications" element={<Verifications />} />
           <Route path="verifications/:id" element={<VerificationDetail />} />
           <Route path="users" element={<Users />} />
-          <Route path="categories" element={<Categories />} />
           <Route path="listings" element={<Listings />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="tutorials" element={<Tutorials />} />

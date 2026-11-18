@@ -23,7 +23,6 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Trust & Profiles",
     items: [
-      { to: "/admin/categories", label: "Categories", icon: "categories" },
       { to: "/admin/listings", label: "Shopper Profiles", icon: "listings" },
       { to: "/admin/complaints", label: "Cases & Safety", icon: "flag" },
     ],
@@ -66,10 +65,10 @@ function getAmbientProfile(pathname: string): AmbientProfile {
       tertiary: "rgba(11, 32, 55, 0.06)",
     };
   }
-  if (pathname.startsWith("/admin/categories") || pathname.startsWith("/admin/listings")) {
+  if (pathname.startsWith("/admin/listings")) {
     return {
       label: "Verified Specialties",
-      section: pathname.includes("listings") ? "Shopper Profiles" : "Categories",
+      section: "Shopper Profiles",
       primary: "rgba(24, 162, 105, 0.15)",
       secondary: "rgba(239, 230, 212, 0.62)",
       tertiary: "rgba(16, 42, 70, 0.05)",

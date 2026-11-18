@@ -8,13 +8,11 @@ import type {
   CustomerMemberRecord,
   ListingRecord,
   MemberRecord,
-  ServiceCategory,
   VerificationApplication,
 } from "../types/admin";
 
 interface OverviewData {
   applications: VerificationApplication[];
-  categories: ServiceCategory[];
   members: MemberRecord[];
   customers: CustomerMemberRecord[];
   cases: CaseRecord[];
@@ -74,12 +72,9 @@ export default function Overview() {
   }
 
   const pendingApps = data.applications.filter((a) => a.status === "PENDING" || a.status === "UNDER_REVIEW");
-  const activeCategories = data.categories.filter((c) => c.isActive);
   const activeMembers = data.members.filter((m) => m.status === "ACTIVE");
   const activeCustomers = data.customers.filter((c) => c.status === "ACTIVE");
   const openCases = data.cases.filter((c) => c.status !== "RESOLVED");
-
-  const maxListingCount = Math.max(1, ...data.categories.map((c) => c.listingCount + c.providerCount));
 
   const stats: {
     label: string;
@@ -128,7 +123,7 @@ export default function Overview() {
     {
       label: "Safety & Policy Cases",
       value: openCases.length,
-      sub: `${activeCategories.length} active shopper verticals`,
+      sub: `${data.cases.length} total safety cases`,
       to: "/admin/complaints",
       icon: "flag",
       iconBg: openCases.length > 0 ? "bg-[#fff0ef] text-[#b42318]" : "bg-green-soft text-green-dark",
@@ -286,44 +281,36 @@ export default function Overview() {
         <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Verified Specialties</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Shopper Verticals</h2>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Provider Trust</p>
+              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Verified Shopper Standing</h2>
             </div>
             <Link
-              to="/admin/categories"
+              to="/admin/users"
               className="inline-flex items-center gap-1.5 rounded-full border border-line bg-soft/70 px-3 py-1 text-xs font-semibold text-navy transition hover:border-green/40 hover:bg-green-soft/60 hover:text-green-dark"
             >
-              Edit
+              Directory
               <Icon name="arrow" size={13} />
             </Link>
           </div>
 
-          <div className="space-y-3.5">
-            {data.categories.slice(0, 6).map((cat) => {
-              const weight = Math.max(14, Math.round(((cat.listingCount + cat.providerCount) / maxListingCount) * 100));
-              return (
-                <div
-                  key={cat.id}
-                  className="group rounded-xl border border-line/70 bg-soft/45 px-3.5 py-3 transition hover:border-green/35 hover:bg-white"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-navy">{cat.name}</p>
-                    <Badge tone={cat.isActive ? "green" : "muted"}>{cat.isActive ? "Active" : "Paused"}</Badge>
+          <div className="space-y-3">
+            {data.members.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-line/70 bg-soft/45 px-3.5 py-3 transition hover:border-green/35 hover:bg-white"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-navy">{m.fullName}</p>
+                    <Badge tone={statusTone(m.tier)}>{m.tier}</Badge>
                   </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line/70">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-navy via-navy-3 to-green transition-all duration-500"
-                        style={{ width: `${weight}%` }}
-                      />
-                    </div>
-                    <span className="shrink-0 text-[11px] font-medium text-muted">
-                      {cat.providerCount} verified shoppers
-                    </span>
-                  </div>
+                  <p className="mt-0.5 truncate text-[11px] text-muted">
+                    {m.memberNumber} · {m.city} · {m.verifiedChecks} checks
+                  </p>
                 </div>
-              );
-            })}
+                <Badge tone={statusTone(m.status)}>{m.status}</Badge>
+              </div>
+            ))}
           </div>
         </section>
       </div>
