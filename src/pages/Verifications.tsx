@@ -50,7 +50,7 @@ export default function Verifications() {
       <PageHeader
         kicker="Membership Vetting"
         title="Shopper Verification"
-        description="Review submissions, check evidence, assess trial videos, and record reasoned decisions. A shopper is listed publicly only after approval."
+        description="Review submissions, check evidence, verify tutorial & assessment completion, and record reasoned decisions. A shopper is listed publicly only after approval."
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -90,7 +90,7 @@ export default function Verifications() {
             <Link
               key={app.id}
               to={`/admin/verifications/${app.id}`}
-              className="group flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 transition hover:-translate-y-0.5 hover:border-green/40 hover:shadow-md sm:flex-row sm:items-center"
+              className="glass-card group flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -105,11 +105,11 @@ export default function Verifications() {
 
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 <Badge tone="muted">{app.documents.length} docs</Badge>
+                <Badge tone={app.tutorialProgress.completed >= app.tutorialProgress.total ? "green" : "muted"}>
+                  Tutorials: {app.tutorialProgress.completed}/{app.tutorialProgress.total}
+                </Badge>
                 <Badge tone={assessmentPassed ? "green" : "muted"}>
                   {assessmentPassed ? "Assessment passed" : "No pass yet"}
-                </Badge>
-                <Badge tone={statusTone(app.trial.status)}>
-                  Trial: {app.trial.status.toLowerCase().replace("_", " ")}
                 </Badge>
                 <Badge tone={app.completionPercent === 100 ? "green" : "amber"}>{app.completionPercent}%</Badge>
                 <Badge tone={statusTone(app.status)}>{app.status.replace("_", " ")}</Badge>
