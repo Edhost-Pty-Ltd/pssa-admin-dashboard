@@ -38,8 +38,12 @@ export default function Complaints() {
       />
 
       <div className="space-y-4">
-        {cases.map((c) => (
-          <div key={c.id} className="rounded-2xl border border-line bg-white p-5">
+        {cases.map((c, idx) => (
+          <div
+            key={c.id}
+            style={{ animationDelay: `${idx * 50}ms` }}
+            className="glass-card stagger-enter rounded-2xl p-5"
+          >
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div>
                 <div className="flex flex-wrap items-center gap-2">

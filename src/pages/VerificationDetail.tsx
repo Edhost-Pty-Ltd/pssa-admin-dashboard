@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { TrialReviewPanel } from "../components/admin/TrialReviewPanel";
 import { Icon } from "../components/Icon";
 import { Badge, PageHeader, statusTone } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
@@ -49,7 +48,6 @@ export default function VerificationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [app, setApp] = useState<VerificationApplication | null>(null);
-  const [rubric, setRubric] = useState<{ id: string; label: string }[]>([]);
   const [decision, setDecision] = useState<VerificationDecision | null>(null);
   const [reason, setReason] = useState("");
   const [checks, setChecks] = useState({
@@ -73,11 +71,11 @@ export default function VerificationDetail() {
     if (!id) return;
     const res = await adminApi.getApplication(id);
     setApp(res.profile);
-    setRubric(res.trialRubric);
   };
 
   useEffect(() => {
-    load();
+    if (!id) return;
+    void adminApi.getApplication(id).then((res) => setApp(res.profile));
   }, [id]);
 
   if (!app) {
@@ -119,7 +117,13 @@ export default function VerificationDetail() {
   };
 
   const resetAssessment = async () => {
-    const updated = await adminApi.resetAssessment(app.id);
+    const latestFailed = [...app.assessments].reverse().find((a) => !a.passed && a.submittedAt);
+    if (!latestFailed) return;
+    const updated = await adminApi.allowExamRetake(
+      app.id,
+      latestFailed.id,
+      "Admin approved assessment retake after compliance review.",
+    );
     setApp(updated);
     notify("Assessment retake approved.");
   };
@@ -177,7 +181,7 @@ export default function VerificationDetail() {
           <section className="rounded-2xl border border-line bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-navy">Admission Gates</h2>
-              <Badge tone={gatesReady && app.trial.status === "APPROVED" ? "green" : "amber"}>
+              <Badge tone={gatesReady ? "green" : "amber"}>
                 {app.completionPercent}% Complete
               </Badge>
             </div>
@@ -206,14 +210,13 @@ export default function VerificationDetail() {
                 </ul>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted">Assessment &amp; Trial</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted">Tutorials &amp; Assessment</p>
                 <ul className="mt-2.5 space-y-2">
-                  <GateRow ok={assessmentPassed} label="Conduct assessment" />
                   <GateRow
-                    ok={app.trial.lessonsCompleted >= app.trial.lessonsTotal}
-                    label={`Lessons (${app.trial.lessonsCompleted}/${app.trial.lessonsTotal})`}
+                    ok={app.tutorialProgress.completed >= app.tutorialProgress.total}
+                    label={`Tutorials (${app.tutorialProgress.completed}/${app.tutorialProgress.total})`}
                   />
-                  <GateRow ok={app.trial.status === "APPROVED"} label="Trial video approved" />
+                  <GateRow ok={assessmentPassed} label="Verification assessment" />
                 </ul>
               </div>
             </div>
@@ -333,8 +336,6 @@ export default function VerificationDetail() {
             </section>
           </div>
 
-          <TrialReviewPanel profile={app} rubric={rubric} onUpdated={setApp} />
-
           <section className="rounded-2xl border border-line bg-white p-6">
             <h2 className="mb-4 text-lg font-bold text-navy">Trading Channels &amp; Specialty Profile</h2>
             <p className="text-sm leading-relaxed text-ink">{app.bio}</p>
@@ -409,7 +410,7 @@ export default function VerificationDetail() {
                   const blockedApprove =
                     a.decision === "APPROVED" &&
                     app.status !== "VERIFIED" &&
-                    (!gatesReady || app.trial.status !== "APPROVED");
+                    !gatesReady;
                   const btnClass =
                     a.tone === "primary"
                       ? "bg-green text-white hover:bg-green-dark"
@@ -435,11 +436,9 @@ export default function VerificationDetail() {
 
               {actions.some((a) => a.decision === "APPROVED") &&
                 app.status !== "VERIFIED" &&
-                (!gatesReady || app.trial.status !== "APPROVED") && (
+                !gatesReady && (
                   <p className="mt-3 text-xs text-[#b42318]">
-                    {!gatesReady
-                      ? "Approval is blocked until every admission gate is met."
-                      : "Approve the shopper's trial video first (Shopper Trial panel)."}
+                    Approval is blocked until every admission gate is met.
                   </p>
                 )}
             </section>
@@ -537,7 +536,7 @@ export default function VerificationDetail() {
                   type="text"
                   value={checks.method}
                   onChange={(e) => setChecks({ ...checks, method: e.target.value })}
-                  placeholder="Check method (optional, e.g. Document inspection & trial video)"
+                  placeholder="Check method (optional, e.g. Document inspection & channel check)"
                   className="mt-2 w-full rounded-lg border border-line bg-white px-3 py-2 text-xs focus:border-green focus:outline-none"
                 />
               </div>

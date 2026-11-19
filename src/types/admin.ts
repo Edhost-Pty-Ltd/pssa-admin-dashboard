@@ -15,11 +15,9 @@ export type VerificationDecision =
   | "SUSPENDED"
   | "REINSTATED";
 
-export type TrialStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "CHANGES_REQUESTED";
 export type DocumentStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 export type MemberStatus = "ACTIVE" | "SUSPENDED" | "PROBATION";
 export type MemberTier = "FOUNDING" | "VERIFIED" | "ASSOCIATE";
-export type CustomerStatus = "ACTIVE" | "SUSPENDED";
 export type ListingStatus = "ACTIVE" | "PENDING" | "PAUSED" | "FLAGGED";
 export type CaseStatus = "OPEN" | "INVESTIGATING" | "ESCALATED" | "RESOLVED";
 
@@ -70,27 +68,13 @@ export interface AssessmentAttempt {
   score: number;
   total: number;
   passed: boolean;
+  criticalFailed?: boolean;
+  retakeUnlocked?: boolean;
 }
 
-export interface TrialVideo {
-  id: string;
-  status: "SUBMITTED" | "APPROVED" | "CHANGES_REQUESTED";
-  durationSeconds: number;
-  sizeBytes: number;
-  createdAt: string;
-  reviewedAt?: string;
-  reviewer?: string;
-  reviewerNote?: string;
-  scenarioPrompt: string;
-}
-
-export interface ProviderTrialData {
-  status: TrialStatus;
-  lessonsCompleted: number;
-  lessonsTotal: number;
-  conditionsAcceptedAt: string | null;
-  scenarioPrompt: string;
-  videos: TrialVideo[];
+export interface TutorialProgressSummary {
+  completed: number;
+  total: number;
 }
 
 export interface DecisionRecord {
@@ -133,7 +117,7 @@ export interface VerificationApplication {
   documents: ApplicationDocument[];
   channels: VerificationChannel[];
   assessments: AssessmentAttempt[];
-  trial: ProviderTrialData;
+  tutorialProgress: TutorialProgressSummary;
   decisions: DecisionRecord[];
 }
 
@@ -149,18 +133,6 @@ export interface MemberRecord {
   categories: string[];
   verifiedChecks: number;
   rating: number;
-  joinedAt: string;
-}
-
-export interface CustomerMemberRecord {
-  id: string;
-  customerCode: string;
-  fullName: string;
-  email: string;
-  city: string;
-  policyAccepted: boolean;
-  status: CustomerStatus;
-  shopperLookups: number;
   joinedAt: string;
 }
 
@@ -194,10 +166,30 @@ export interface CaseRecord {
 export interface TutorialRecord {
   id: string;
   title: string;
-  category: string;
-  duration: string;
-  audience: "ALL_SHOPPERS" | "NEW_APPLICANTS" | "ADMIN";
-  published: boolean;
+  durationSeconds: number | null;
+  isActive: boolean;
+  storagePath: string;
+  uploadedById: string;
+  createdAt: string;
+  /** Local object URL used in mock mode for in-browser video preview. */
+  previewUrl?: string;
+}
+
+export interface ExamOption {
+  id: string;
+  label: string;
+}
+
+export interface ExamQuestionRecord {
+  id: string;
+  topic: string;
+  prompt: string;
+  options: ExamOption[];
+  correctOptionId: string;
+  isCritical: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -206,7 +198,7 @@ export interface AuditEntry {
   actor: string;
   action: string;
   target: string;
-  category: "VERIFICATION" | "CATEGORY" | "MEMBER" | "CUSTOMER" | "CASE" | "LISTING" | "SETTINGS";
+  category: "VERIFICATION" | "CATEGORY" | "MEMBER" | "CASE" | "LISTING" | "TUTORIAL" | "ASSESSMENT" | "SETTINGS";
   timestamp: string;
 }
 

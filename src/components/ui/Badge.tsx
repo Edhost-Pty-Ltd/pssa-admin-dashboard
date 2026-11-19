@@ -41,7 +41,6 @@ export function statusTone(status: string): Tone {
     case "INFO_REQUESTED":
     case "INFO_REQUIRED":
     case "CHANGES_REQUESTED":
-    case "IN_PROGRESS":
     case "PROBATION":
     case "PAUSED":
     case "ASSOCIATE":
@@ -75,18 +74,18 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-7 flex flex-col justify-between gap-4 border-b border-navy/10 pb-6 sm:flex-row sm:items-end">
-      <div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-green/20 bg-green-soft/80 px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.16em] text-green-dark">
-          <span className="h-1.5 w-1.5 rounded-full bg-green" aria-hidden="true" />
+    <div className="stagger-enter mb-7 flex flex-col justify-between gap-4 border-b border-navy/10 pb-6 sm:flex-row sm:items-end">
+      <div className="min-w-0">
+        <p className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.24em] text-green-dark">
+          <span className="h-px w-7 bg-green" aria-hidden="true" />
           {kicker}
-        </span>
+        </p>
         <h1 className="mt-2.5 font-display text-2xl font-semibold tracking-tight text-navy sm:text-[32px] sm:leading-[1.15]">
           {title}
         </h1>
         {description && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto sm:justify-end">{actions}</div>}
     </div>
   );
 }

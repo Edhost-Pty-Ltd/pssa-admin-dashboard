@@ -5,7 +5,6 @@ import { Badge, statusTone } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
 import type {
   CaseRecord,
-  CustomerMemberRecord,
   ListingRecord,
   MemberRecord,
   VerificationApplication,
@@ -14,7 +13,6 @@ import type {
 interface OverviewData {
   applications: VerificationApplication[];
   members: MemberRecord[];
-  customers: CustomerMemberRecord[];
   cases: CaseRecord[];
   listings: ListingRecord[];
 }
@@ -42,12 +40,12 @@ function gateSummary(app: VerificationApplication): string {
     app.documents.some((d) => d.type === "bank_evidence" && d.status === "ACCEPTED");
   const channelReady = app.channels.some((c) => c.confirmed);
   const assessmentPassed = app.assessments.some((a) => a.passed);
-  const trialApproved = app.trial.status === "APPROVED";
+  const tutorialsDone = app.tutorialProgress.completed >= app.tutorialProgress.total;
   const passedCount =
     (docsReady && channelReady ? 1 : 0) +
     (app.conductAcceptedAt && app.emailVerifiedAt && app.phoneVerifiedAt ? 1 : 0) +
-    (assessmentPassed ? 1 : 0) +
-    (trialApproved ? 1 : 0);
+    (tutorialsDone ? 1 : 0) +
+    (assessmentPassed ? 1 : 0);
   return `${passedCount}/4 gates`;
 }
 
@@ -73,7 +71,7 @@ export default function Overview() {
 
   const pendingApps = data.applications.filter((a) => a.status === "PENDING" || a.status === "UNDER_REVIEW");
   const activeMembers = data.members.filter((m) => m.status === "ACTIVE");
-  const activeCustomers = data.customers.filter((c) => c.status === "ACTIVE");
+  const activeListings = data.listings.filter((l) => l.status === "ACTIVE");
   const openCases = data.cases.filter((c) => c.status !== "RESOLVED");
 
   const stats: {
@@ -110,14 +108,14 @@ export default function Overview() {
       accent: "text-green-dark",
     },
     {
-      label: "Customer Members",
-      value: activeCustomers.length,
-      sub: `${data.customers.reduce((s, c) => s + c.shopperLookups, 0)} verified shopper lookups`,
-      to: "/admin/users",
-      icon: "people",
+      label: "Specialty Profiles",
+      value: activeListings.length,
+      sub: `${data.listings.length} total shopper profiles`,
+      to: "/admin/listings",
+      icon: "listings",
       iconBg: "bg-[#eaf3fb] text-navy-2",
       barColor: "bg-navy-3",
-      barPct: Math.min(100, Math.round((activeCustomers.length / Math.max(1, data.customers.length)) * 100)),
+      barPct: Math.min(100, Math.round((activeListings.length / Math.max(1, data.listings.length)) * 100)),
       accent: "text-navy",
     },
     {
@@ -135,7 +133,11 @@ export default function Overview() {
 
   return (
     <div className="space-y-7">
-      <section className="relative overflow-hidden rounded-3xl bg-navy px-6 py-7 text-white shadow-[0_24px_60px_-24px_rgba(11,32,55,0.55)] sm:px-9 sm:py-8">
+      <section className="stagger-enter relative overflow-hidden rounded-3xl bg-navy px-5 py-6 text-white shadow-[0_24px_60px_-24px_rgba(11,32,55,0.55)] sm:px-9 sm:py-8">
+        <div
+          aria-hidden="true"
+          className="grain pointer-events-none absolute inset-0 z-[1] opacity-[0.06] mix-blend-overlay"
+        />
         <div
           className="pointer-events-none absolute -top-24 -right-16 h-72 w-72 rounded-full opacity-35 blur-3xl"
           style={{ background: "radial-gradient(circle, #18a269 0%, transparent 70%)" }}
@@ -147,7 +149,7 @@ export default function Overview() {
           aria-hidden="true"
         />
 
-        <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+        <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sand">
               <span className="h-1.5 w-1.5 rounded-full bg-green" />
@@ -157,38 +159,38 @@ export default function Overview() {
               Shopper Verification &amp; <span className="text-sand">Scam Prevention</span>
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">
-              Verify personal shopper identities, enforce 4-gate accreditation, and ensure customer members safely view authenticated provider profiles.
+              Verify personal shopper identities, enforce 4-gate accreditation, manage training tutorials &amp; assessments, and resolve Cases &amp; Safety reports.
             </p>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2.5">
-              <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
+            <div className="mt-5 grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center">
+              <div className="glass-dark-card rounded-xl px-3.5 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Verified Shoppers</p>
                 <p className="font-display text-base font-semibold text-sand">{activeMembers.length} active providers</p>
               </div>
-              <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
+              <div className="glass-dark-card rounded-xl px-3.5 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Vetting Queue</p>
                 <p className="font-display text-base font-semibold text-white">{pendingApps.length} awaiting review</p>
               </div>
-              <div className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-2 backdrop-blur-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Customer Members</p>
+              <div className="glass-dark-card rounded-xl px-3.5 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Cases &amp; Safety</p>
                 <p className="font-display text-base font-semibold text-[#8bdbb8]">
-                  {activeCustomers.length} policy-verified
+                  {openCases.length} open {openCases.length === 1 ? "report" : "reports"}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <Link
               to="/admin/users"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white/16"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white/16"
             >
               <Icon name="people" size={16} className="text-sand" />
               Member Directory
             </Link>
             <Link
               to="/admin/verifications"
-              className="inline-flex items-center gap-2 rounded-xl bg-green px-4.5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-8px_rgba(24,162,105,0.7)] transition hover:-translate-y-0.5 hover:bg-green-dark"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-green px-4.5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_-8px_rgba(24,162,105,0.7)] transition hover:-translate-y-0.5 hover:bg-green-dark"
             >
               <Icon name="shield" size={16} />
               Review Queue
@@ -198,11 +200,12 @@ export default function Overview() {
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s) => (
+        {stats.map((s, idx) => (
           <Link
             key={s.label}
             to={s.to}
-            className="group relative overflow-hidden rounded-2xl border border-line bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-green/45 hover:shadow-[0_18px_36px_-18px_rgba(11,32,55,0.2)]"
+            style={{ animationDelay: `${idx * 60}ms` }}
+            className="glass-card stagger-enter group relative overflow-hidden rounded-2xl p-5"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -316,48 +319,44 @@ export default function Overview() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-7">
+        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Customer Access &amp; Safety</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Customer Members</h2>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Verified Specialties</p>
+              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Shopper Profiles</h2>
             </div>
             <Link
-              to="/admin/users"
+              to="/admin/listings"
               className="inline-flex items-center gap-1.5 rounded-full border border-line bg-soft/70 px-3 py-1 text-xs font-semibold text-navy transition hover:border-green/40 hover:bg-green-soft/60 hover:text-green-dark"
             >
-              Manage members
+              Manage profiles
               <Icon name="arrow" size={13} />
             </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {data.customers.map((c) => (
+            {data.listings.map((l) => (
               <div
-                key={c.id}
+                key={l.id}
                 className="flex flex-col justify-between rounded-xl border border-line/80 bg-soft/45 p-4 transition hover:border-green/35 hover:bg-white hover:shadow-sm"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-bold tracking-wide text-navy">{c.customerCode}</span>
-                    <Badge tone={c.policyAccepted ? "green" : "amber"}>
-                      {c.policyAccepted ? "Policy OK" : "Pending"}
-                    </Badge>
+                    <span className="text-xs font-bold tracking-wide text-navy">{l.categoryName}</span>
+                    <Badge tone={statusTone(l.status)}>{l.status}</Badge>
                   </div>
-                  <p className="mt-2 font-semibold text-navy">{c.fullName}</p>
-                  <p className="mt-0.5 text-xs text-muted">{c.email}</p>
+                  <p className="mt-2 font-semibold text-navy">{l.title}</p>
+                  <p className="mt-0.5 text-xs text-muted">{l.shopperName} · {l.city}</p>
                 </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-line/70 pt-3">
-                  <span className="text-[11px] font-medium text-muted">{c.city}</span>
-                  <span className="text-xs font-semibold text-navy">{c.shopperLookups} shopper lookups</span>
-                </div>
+                <p className="mt-3 line-clamp-2 border-t border-line/70 pt-2.5 text-[11px] text-ink">
+                  {l.specialtySummary}
+                </p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-5">
+        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Scam Prevention</p>

@@ -2,13 +2,12 @@ import {
   initialApplications,
   initialAuditLogs,
   initialCases,
-  initialCustomers,
+  initialExamQuestions,
   initialListings,
   initialMembers,
   initialNotifications,
   initialSettings,
   initialTutorials,
-  trialRubric,
 } from "../data/mockAdminData";
 import type {
   AdminSettings,
@@ -16,9 +15,8 @@ import type {
   AuditEntry,
   CaseRecord,
   CaseStatus,
-  CustomerMemberRecord,
-  CustomerStatus,
   DocumentStatus,
+  ExamQuestionRecord,
   ListingRecord,
   ListingStatus,
   MemberRecord,
@@ -33,17 +31,17 @@ import { api } from "./api";
 /**
  * Safe frontend isolation flag:
  * - true  => uses in-memory mock data so the admin dashboard can be edited & tested without backend dependencies.
- * - false => routes calls to /api/admin/* via src/lib/api.ts when backend endpoints are ready.
+ * - false => routes calls to the PSSA backend via src/lib/api.ts.
  */
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== "false";
 
-let store = {
+const store = {
   applications: structuredClone(initialApplications),
   members: structuredClone(initialMembers),
-  customers: structuredClone(initialCustomers),
   listings: structuredClone(initialListings),
   cases: structuredClone(initialCases),
   tutorials: structuredClone(initialTutorials),
+  examQuestions: structuredClone(initialExamQuestions),
   audit: structuredClone(initialAuditLogs),
   notifications: structuredClone(initialNotifications),
   settings: structuredClone(initialSettings),
@@ -71,7 +69,6 @@ export const adminApi = {
       return api<{
         applications: VerificationApplication[];
         members: MemberRecord[];
-        customers: CustomerMemberRecord[];
         cases: CaseRecord[];
         listings: ListingRecord[];
       }>("/admin/overview");
@@ -79,24 +76,22 @@ export const adminApi = {
     return {
       applications: store.applications,
       members: store.members,
-      customers: store.customers,
       cases: store.cases,
       listings: store.listings,
     };
   },
 
   async listApplications(): Promise<VerificationApplication[]> {
-    if (!USE_MOCK_API) return api<VerificationApplication[]>("/admin/verifications");
+    if (!USE_MOCK_API) return api<VerificationApplication[]>("/admin/applications");
     return [...store.applications];
   },
 
-  async getApplication(id: string): Promise<{ profile: VerificationApplication | null; trialRubric: { id: string; label: string }[] }> {
+  async getApplication(id: string): Promise<{ profile: VerificationApplication | null }> {
     if (!USE_MOCK_API) {
-      return api<{ profile: VerificationApplication; trialRubric: { id: string; label: string }[] }>(`/admin/verifications/${id}`);
+      return api<{ profile: VerificationApplication }>(`/admin/applications/${id}`);
     }
     return {
       profile: store.applications.find((a) => a.id === id) ?? null,
-      trialRubric,
     };
   },
 
@@ -176,47 +171,21 @@ export const adminApi = {
     return store.applications.find((a) => a.id === appId)!;
   },
 
-  async resetAssessment(appId: string): Promise<VerificationApplication> {
+  async allowExamRetake(appId: string, attemptId: string, reason: string): Promise<VerificationApplication> {
     if (!USE_MOCK_API) {
-      const res = await api<{ profile: VerificationApplication }>(`/admin/verifications/${appId}/assessment-reset`, {
+      await api(`/exam/attempts/${attemptId}/allow-retake`, {
         method: "POST",
+        body: { reason, conflictDeclared: true },
       });
+      const res = await api<{ profile: VerificationApplication }>(`/admin/applications/${appId}`);
       return res.profile;
     }
     store.applications = store.applications.map((a) => {
       if (a.id !== appId) return a;
-      recordAudit("Approved assessment retake", `${a.referenceCode} — ${a.applicantName}`, "VERIFICATION");
-      return { ...a, assessments: [] };
-    });
-    return store.applications.find((a) => a.id === appId)!;
-  },
-
-  async reviewTrial(
-    appId: string,
-    decision: "APPROVED" | "CHANGES_REQUESTED",
-    rubric: Record<string, boolean>,
-    note?: string,
-  ): Promise<VerificationApplication> {
-    if (!USE_MOCK_API) {
-      const res = await api<{ profile: VerificationApplication }>(`/admin/verifications/${appId}/trial`, {
-        method: "POST",
-        body: { decision, rubric, note },
-      });
-      return res.profile;
-    }
-    const nowIso = new Date().toISOString();
-    store.applications = store.applications.map((a) => {
-      if (a.id !== appId) return a;
-      recordAudit(`Trial video ${decision}`, `${a.referenceCode} — ${a.applicantName}`, "VERIFICATION");
+      recordAudit("Unlocked assessment retake", `${a.referenceCode} — ${a.applicantName}`, "ASSESSMENT");
       return {
         ...a,
-        trial: {
-          ...a.trial,
-          status: decision,
-          videos: a.trial.videos.map((v, idx) =>
-            idx === 0 ? { ...v, status: decision, reviewedAt: nowIso, reviewer: "Admin (Sandbox)", reviewerNote: note } : v,
-          ),
-        },
+        assessments: a.assessments.map((asm) => (asm.id === attemptId ? { ...asm, retakeUnlocked: true } : asm)),
       };
     });
     return store.applications.find((a) => a.id === appId)!;
@@ -241,30 +210,13 @@ export const adminApi = {
 
   async updateMemberStatus(id: string, status: MemberStatus): Promise<void> {
     if (!USE_MOCK_API) {
-      await api(`/admin/members/${id}`, { method: "PATCH", body: { status } });
+      await api(`/admin/members/${id}/status`, { method: "POST", body: { status } });
       return;
     }
     store.members = store.members.map((m) => {
       if (m.id !== id) return m;
       recordAudit(`Updated shopper standing to ${status}`, `${m.memberNumber} — ${m.fullName}`, "MEMBER");
       return { ...m, status };
-    });
-  },
-
-  async listCustomers(): Promise<CustomerMemberRecord[]> {
-    if (!USE_MOCK_API) return api<CustomerMemberRecord[]>("/admin/customers");
-    return [...store.customers];
-  },
-
-  async updateCustomerStatus(id: string, status: CustomerStatus): Promise<void> {
-    if (!USE_MOCK_API) {
-      await api(`/admin/customers/${id}`, { method: "PATCH", body: { status } });
-      return;
-    }
-    store.customers = store.customers.map((c) => {
-      if (c.id !== id) return c;
-      recordAudit(`Updated customer member to ${status}`, `${c.customerCode} — ${c.fullName}`, "CUSTOMER");
-      return { ...c, status };
     });
   },
 
@@ -303,16 +255,117 @@ export const adminApi = {
   },
 
   async listTutorials(): Promise<TutorialRecord[]> {
-    if (!USE_MOCK_API) return api<TutorialRecord[]>("/admin/tutorials");
+    if (!USE_MOCK_API) {
+      const res = await api<{ tutorials: TutorialRecord[] }>("/tutorials");
+      return res.tutorials;
+    }
     return [...store.tutorials];
   },
 
-  async toggleTutorial(id: string): Promise<void> {
+  async uploadTutorial(input: { title: string; file: File; durationSeconds?: number }): Promise<TutorialRecord> {
     if (!USE_MOCK_API) {
-      await api(`/admin/tutorials/${id}`, { method: "PATCH" });
+      const form = new FormData();
+      form.append("title", input.title);
+      if (input.durationSeconds) form.append("durationSeconds", String(input.durationSeconds));
+      form.append("file", input.file);
+      const res = await api<{ tutorial: TutorialRecord }>("/tutorials", { method: "POST", body: form });
+      return res.tutorial;
+    }
+    const previewUrl = URL.createObjectURL(input.file);
+    const created: TutorialRecord = {
+      id: `tut-${Date.now()}`,
+      title: input.title,
+      durationSeconds: input.durationSeconds ?? null,
+      isActive: false,
+      storagePath: input.file.name,
+      uploadedById: "admin-1",
+      createdAt: new Date().toISOString(),
+      previewUrl,
+    };
+    store.tutorials = [...store.tutorials, created];
+    recordAudit("Uploaded tutorial video", created.title, "TUTORIAL");
+    return created;
+  },
+
+  async updateTutorial(
+    id: string,
+    patch: { title?: string; durationSeconds?: number | null; isActive?: boolean },
+  ): Promise<TutorialRecord> {
+    if (!USE_MOCK_API) {
+      const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}`, { method: "PATCH", body: patch });
+      return res.tutorial;
+    }
+    store.tutorials = store.tutorials.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    const updated = store.tutorials.find((t) => t.id === id)!;
+    recordAudit(
+      patch.isActive !== undefined ? `${patch.isActive ? "Activated" : "Deactivated"} tutorial` : "Updated tutorial metadata",
+      updated.title,
+      "TUTORIAL",
+    );
+    return updated;
+  },
+
+  async activateTutorial(id: string): Promise<TutorialRecord> {
+    if (!USE_MOCK_API) {
+      const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}/activate`, { method: "POST" });
+      return res.tutorial;
+    }
+    return this.updateTutorial(id, { isActive: true });
+  },
+
+  async listExamQuestions(): Promise<ExamQuestionRecord[]> {
+    if (!USE_MOCK_API) {
+      const res = await api<{ questions: ExamQuestionRecord[] }>("/exam/questions");
+      return res.questions;
+    }
+    return [...store.examQuestions].sort((a, b) => a.sortOrder - b.sortOrder);
+  },
+
+  async createExamQuestion(
+    input: Omit<ExamQuestionRecord, "id" | "createdAt" | "updatedAt">,
+  ): Promise<ExamQuestionRecord> {
+    if (!USE_MOCK_API) {
+      const res = await api<{ question: ExamQuestionRecord }>("/exam/questions", { method: "POST", body: input });
+      return res.question;
+    }
+    const now = new Date().toISOString();
+    const created: ExamQuestionRecord = {
+      ...input,
+      id: `q-${Date.now()}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    store.examQuestions = [...store.examQuestions, created];
+    recordAudit("Added assessment question", created.topic, "ASSESSMENT");
+    return created;
+  },
+
+  async updateExamQuestion(
+    id: string,
+    patch: Partial<Omit<ExamQuestionRecord, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<ExamQuestionRecord> {
+    if (!USE_MOCK_API) {
+      const res = await api<{ question: ExamQuestionRecord }>(`/exam/questions/${id}`, {
+        method: "PATCH",
+        body: patch,
+      });
+      return res.question;
+    }
+    const now = new Date().toISOString();
+    store.examQuestions = store.examQuestions.map((q) => (q.id === id ? { ...q, ...patch, updatedAt: now } : q));
+    const updated = store.examQuestions.find((q) => q.id === id)!;
+    recordAudit("Updated assessment question", updated.topic, "ASSESSMENT");
+    return updated;
+  },
+
+  async deleteExamQuestion(id: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      await api(`/exam/questions/${id}`, { method: "DELETE" });
       return;
     }
-    store.tutorials = store.tutorials.map((t) => (t.id === id ? { ...t, published: !t.published } : t));
+    const target = store.examQuestions.find((q) => q.id === id);
+    store.examQuestions = store.examQuestions.filter((q) => q.id !== id);
+    if (target) recordAudit("Removed assessment question", target.topic, "ASSESSMENT");
   },
 
   async listAudit(): Promise<AuditEntry[]> {
