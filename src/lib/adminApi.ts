@@ -468,6 +468,7 @@ export const adminApi = {
               tradingName: string | null;
               scope: string | null;
               city: string | null;
+              channels?: { id: string; kind: string; value: string; status: string }[];
             } | null;
             documents: {
               id: string;
@@ -550,7 +551,12 @@ export const adminApi = {
         conductAcceptedAt: application.agreementAcceptedAt,
         conductVersion: application.agreementVersion,
         documents: docs,
-        channels: [],
+        channels: (p?.channels ?? []).map((ch) => ({
+          id: ch.id,
+          platform: ch.kind,
+          handle: ch.value,
+          confirmed: ch.status === "confirmed",
+        })),
         assessments: (examRes.exam?.attempts ?? []).map((a) => ({
           id: a.id,
           startedAt: a.startedAt,
@@ -661,9 +667,11 @@ export const adminApi = {
   },
 
   async toggleApplicationChannel(appId: string, channelId: string): Promise<void> {
-    void appId;
-    void channelId;
-    // Channel confirmation is managed on member submission in Phase 1 backend.
+    await api(`/admin/applications/${appId}/channels/${channelId}`, { method: "PATCH" });
+    invalidate(`application:${appId}`, "overview");
+    if (appId.startsWith("member:")) {
+      invalidate(`member:${appId.slice("member:".length)}`);
+    }
   },
 
   async listMembers(): Promise<MemberRecord[]> {
