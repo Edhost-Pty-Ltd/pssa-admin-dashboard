@@ -364,6 +364,7 @@ export function AdminLayout() {
           // ignore
         }
         setAuthChecked(true);
+        adminApi.prefetchCore();
         void adminApi
           .listNotifications()
           .then((items) => {

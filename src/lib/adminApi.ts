@@ -19,8 +19,25 @@ import type {
 } from "../types/admin";
 import { api } from "./api";
 
-const CACHE_TTL_MS = 30_000;
+const CACHE_TTL_MS = 15_000;
 const cache = new Map<string, { data: unknown; ts: number; promise?: Promise<unknown> }>();
+
+function readSessionCache<T>(key: string): T | undefined {
+  try {
+    const raw = sessionStorage.getItem(`pssa_swr:${key}`);
+    return raw ? (JSON.parse(raw) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSessionCache(key: string, data: unknown) {
+  try {
+    sessionStorage.setItem(`pssa_swr:${key}`, JSON.stringify(data));
+  } catch {
+    // ignore quota/private mode errors
+  }
+}
 
 async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   const entry = cache.get(key);
@@ -28,20 +45,32 @@ async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   if (entry && now - entry.ts < CACHE_TTL_MS && entry.data !== undefined) {
     return entry.data as T;
   }
-  if (entry?.promise) {
-    return entry.promise as Promise<T>;
+  const staleData = (entry?.data ?? readSessionCache<T>(key)) as T | undefined;
+  if (!entry?.promise) {
+    const promise = fetcher()
+      .then((data) => {
+        cache.set(key, { data, ts: Date.now() });
+        writeSessionCache(key, data);
+        return data;
+      })
+      .catch((err) => {
+        if (staleData !== undefined) {
+          cache.set(key, { data: staleData, ts: Date.now() });
+          return staleData;
+        }
+        cache.delete(key);
+        throw err;
+      });
+    cache.set(key, { data: staleData, ts: entry?.ts ?? 0, promise });
+    if (staleData === undefined) {
+      return promise;
+    }
   }
-  const promise = fetcher()
-    .then((data) => {
-      cache.set(key, { data, ts: Date.now() });
-      return data;
-    })
-    .catch((err) => {
-      cache.delete(key);
-      throw err;
-    });
-  cache.set(key, { data: entry?.data, ts: entry?.ts ?? 0, promise });
-  return promise;
+  // True Stale-While-Revalidate: return cached/session data immediately while refreshing in background
+  if (staleData !== undefined) {
+    return staleData;
+  }
+  return entry!.promise as Promise<T>;
 }
 
 function invalidate(...prefixes: string[]) {
@@ -49,6 +78,16 @@ function invalidate(...prefixes: string[]) {
     if (prefixes.some((p) => key === p || key.startsWith(p))) {
       cache.delete(key);
     }
+  }
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k?.startsWith("pssa_swr:") && prefixes.some((p) => k.slice(9).startsWith(p))) {
+        sessionStorage.removeItem(k);
+      }
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -287,7 +326,26 @@ function mergeOnboardingMembers(apps: VerificationApplication[], members: Backen
 
 export const adminApi = {
   isMockMode: () => false,
-  clearCache: () => cache.clear(),
+  clearCache: () => {
+    cache.clear();
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k?.startsWith("pssa_swr:")) sessionStorage.removeItem(k);
+      }
+    } catch {
+      // ignore
+    }
+  },
+  prefetchCore: () => {
+    void Promise.allSettled([
+      adminApi.getOverview(),
+      adminApi.listApplications(),
+      adminApi.listMembers(),
+      adminApi.listCases(),
+      adminApi.listTutorials(),
+    ]);
+  },
 
   async getOverview() {
     return cached("overview", async () => {
