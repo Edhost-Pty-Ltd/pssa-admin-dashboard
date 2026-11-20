@@ -120,24 +120,32 @@ export default function Tutorials() {
   const saveEditVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVideo || !editVideoTitle.trim()) return;
-    await adminApi.updateTutorial(editingVideo.id, {
-      title: editVideoTitle.trim(),
-      durationSeconds: editVideoDuration ? Number(editVideoDuration) : null,
-    });
-    setEditingVideo(null);
-    await load();
-    notify("Tutorial metadata updated.");
+    try {
+      await adminApi.updateTutorial(editingVideo.id, {
+        title: editVideoTitle.trim(),
+        durationSeconds: editVideoDuration ? Number(editVideoDuration) : null,
+      });
+      setEditingVideo(null);
+      await load();
+      notify("Tutorial metadata updated.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   const toggleActiveVideo = async (t: TutorialRecord) => {
-    if (t.isActive) {
-      await adminApi.updateTutorial(t.id, { isActive: false });
-      notify("Tutorial moved to Draft.");
-    } else {
-      await adminApi.activateTutorial(t.id);
-      notify("Tutorial activated for applicants.");
+    try {
+      if (t.isActive) {
+        await adminApi.updateTutorial(t.id, { isActive: false });
+        notify("Tutorial moved to Draft.");
+      } else {
+        await adminApi.activateTutorial(t.id);
+        notify("Tutorial activated for applicants.");
+      }
+      await load();
+    } catch (err) {
+      notify(errorMessage(err));
     }
-    await load();
   };
 
   const openNewQuestion = () => {
@@ -168,43 +176,55 @@ export default function Tutorials() {
     e.preventDefault();
     if (!qTopic.trim() || !qPrompt.trim() || qOptions.some((o) => !o.label.trim())) return;
 
-    if (editingQuestion) {
-      await adminApi.updateExamQuestion(editingQuestion.id, {
-        topic: qTopic.trim(),
-        prompt: qPrompt.trim(),
-        options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
-        correctOptionId: qCorrectId,
-        isCritical: qCritical,
-        isActive: qActive,
-        sortOrder: qSortOrder,
-      });
-      notify("Assessment question updated.");
-    } else {
-      await adminApi.createExamQuestion({
-        topic: qTopic.trim(),
-        prompt: qPrompt.trim(),
-        options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
-        correctOptionId: qCorrectId,
-        isCritical: qCritical,
-        isActive: qActive,
-        sortOrder: qSortOrder,
-      });
-      notify("Assessment question added.");
+    try {
+      if (editingQuestion) {
+        await adminApi.updateExamQuestion(editingQuestion.id, {
+          topic: qTopic.trim(),
+          prompt: qPrompt.trim(),
+          options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
+          correctOptionId: qCorrectId,
+          isCritical: qCritical,
+          isActive: qActive,
+          sortOrder: qSortOrder,
+        });
+        notify("Assessment question updated.");
+      } else {
+        await adminApi.createExamQuestion({
+          topic: qTopic.trim(),
+          prompt: qPrompt.trim(),
+          options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
+          correctOptionId: qCorrectId,
+          isCritical: qCritical,
+          isActive: qActive,
+          sortOrder: qSortOrder,
+        });
+        notify("Assessment question added.");
+      }
+      setQuestionModalOpen(false);
+      await load();
+    } catch (err) {
+      notify(errorMessage(err));
     }
-    setQuestionModalOpen(false);
-    await load();
   };
 
   const toggleQuestionActive = async (q: ExamQuestionRecord) => {
-    await adminApi.updateExamQuestion(q.id, { isActive: !q.isActive });
-    await load();
-    notify(q.isActive ? "Question deactivated." : "Question activated.");
+    try {
+      await adminApi.updateExamQuestion(q.id, { isActive: !q.isActive });
+      await load();
+      notify(q.isActive ? "Question deactivated." : "Question activated.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   const removeQuestion = async (q: ExamQuestionRecord) => {
-    await adminApi.deleteExamQuestion(q.id);
-    await load();
-    notify("Question removed.");
+    try {
+      await adminApi.deleteExamQuestion(q.id);
+      await load();
+      notify("Question removed.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   return (

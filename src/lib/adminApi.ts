@@ -37,7 +37,7 @@ function mapAppStatus(status: string): ApplicationStatus {
 
 function mapDocStatus(status: string): DocumentStatus {
   if (status === "accepted") return "ACCEPTED";
-  if (status === "rejected") return "REJECTED";
+  if (status === "rejected" || status === "needs_resubmission") return "REJECTED";
   return "PENDING";
 }
 
@@ -390,11 +390,19 @@ export const adminApi = {
     status: DocumentStatus,
     note?: string,
   ): Promise<VerificationApplication> {
+    const reviewStatus = status === "ACCEPTED" ? "accepted" : status === "REJECTED" ? "needs_resubmission" : "under_review";
+    const trimmedNote = note?.trim();
+    const reviewerNote =
+      reviewStatus === "needs_resubmission"
+        ? trimmedNote && trimmedNote.length >= 10
+          ? trimmedNote
+          : "Document needs resubmission — please upload a clearer copy."
+        : trimmedNote || undefined;
     await api(`/admin/documents/${docId}`, {
       method: "PATCH",
       body: {
-        status: status === "ACCEPTED" ? "accepted" : "rejected",
-        reviewerNote: note,
+        reviewStatus,
+        ...(reviewerNote ? { reviewerNote } : {}),
       },
     });
     const res = await this.getApplication(appId);
@@ -449,15 +457,29 @@ export const adminApi = {
   },
 
   async updateCase(id: string, status: CaseStatus, resolutionNotes: string): Promise<void> {
-    const statusMap: Record<CaseStatus, string> = {
+    const trimmed = resolutionNotes.trim();
+    if (status === "RESOLVED") {
+      await api(`/admin/complaints/${id}/decision`, {
+        method: "POST",
+        body: {
+          outcome: "no_breach",
+          reasons: trimmed.length >= 10 ? trimmed : "Case resolved after admin compliance review.",
+          conflictDeclared: true,
+        },
+      });
+      return;
+    }
+    const statusMap: Record<Exclude<CaseStatus, "RESOLVED">, string> = {
       OPEN: "received",
       INVESTIGATING: "under_review",
       ESCALATED: "under_appeal",
-      RESOLVED: "closed",
     };
     await api(`/admin/complaints/${id}`, {
       method: "PATCH",
-      body: { status: statusMap[status], note: resolutionNotes },
+      body: {
+        status: statusMap[status],
+        ...(trimmed ? { internalNote: trimmed } : {}),
+      },
     });
   },
 
