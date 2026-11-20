@@ -248,6 +248,12 @@ function SidebarContent({
           type="button"
           onClick={async () => {
             onNavigate?.();
+            try {
+              sessionStorage.removeItem("pssa_admin_authed");
+            } catch {
+              // ignore
+            }
+            adminApi.clearCache();
             await api("/auth/logout", { method: "POST" }).catch(() => {});
             window.location.assign("/login");
           }}
@@ -312,7 +318,13 @@ export function AdminLayout() {
     }
   });
   const [unread, setUnread] = useState(0);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("pssa_admin_authed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const location = useLocation();
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -338,8 +350,18 @@ export function AdminLayout() {
       .then((res) => {
         if (!active) return;
         if (!res.user || res.user.role !== "ADMIN") {
+          try {
+            sessionStorage.removeItem("pssa_admin_authed");
+          } catch {
+            // ignore
+          }
           navigate("/login", { replace: true });
           return;
+        }
+        try {
+          sessionStorage.setItem("pssa_admin_authed", "true");
+        } catch {
+          // ignore
         }
         setAuthChecked(true);
         void adminApi
@@ -350,6 +372,11 @@ export function AdminLayout() {
           .catch(() => {});
       })
       .catch(() => {
+        try {
+          sessionStorage.removeItem("pssa_admin_authed");
+        } catch {
+          // ignore
+        }
         if (active) navigate("/login", { replace: true });
       });
     return () => {

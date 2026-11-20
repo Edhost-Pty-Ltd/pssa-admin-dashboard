@@ -18,6 +18,39 @@ import type {
 } from "../types/admin";
 import { api } from "./api";
 
+const CACHE_TTL_MS = 30_000;
+const cache = new Map<string, { data: unknown; ts: number; promise?: Promise<unknown> }>();
+
+async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const entry = cache.get(key);
+  const now = Date.now();
+  if (entry && now - entry.ts < CACHE_TTL_MS && entry.data !== undefined) {
+    return entry.data as T;
+  }
+  if (entry?.promise) {
+    return entry.promise as Promise<T>;
+  }
+  const promise = fetcher()
+    .then((data) => {
+      cache.set(key, { data, ts: Date.now() });
+      return data;
+    })
+    .catch((err) => {
+      cache.delete(key);
+      throw err;
+    });
+  cache.set(key, { data: entry?.data, ts: entry?.ts ?? 0, promise });
+  return promise;
+}
+
+function invalidate(...prefixes: string[]) {
+  for (const key of cache.keys()) {
+    if (prefixes.some((p) => key === p || key.startsWith(p))) {
+      cache.delete(key);
+    }
+  }
+}
+
 function mapAppStatus(status: string): ApplicationStatus {
   switch (status) {
     case "submitted":
@@ -209,29 +242,35 @@ function mapComplaint(item: BackendComplaintItem): CaseRecord {
 
 export const adminApi = {
   isMockMode: () => false,
+  clearCache: () => cache.clear(),
 
   async getOverview() {
-    const res = await api<{
-      applications: BackendAppListItem[];
-      members: BackendMemberItem[];
-      cases: BackendComplaintItem[];
-      listings: ListingRecord[];
-    }>("/admin/overview");
-    return {
-      applications: res.applications.map(mapListApplication),
-      members: res.members.map(mapMember),
-      cases: res.cases.map(mapComplaint),
-      listings: res.listings ?? [],
-    };
+    return cached("overview", async () => {
+      const res = await api<{
+        applications: BackendAppListItem[];
+        members: BackendMemberItem[];
+        cases: BackendComplaintItem[];
+        listings: ListingRecord[];
+      }>("/admin/overview");
+      return {
+        applications: res.applications.map(mapListApplication),
+        members: res.members.map(mapMember),
+        cases: res.cases.map(mapComplaint),
+        listings: res.listings ?? [],
+      };
+    });
   },
 
   async listApplications(): Promise<VerificationApplication[]> {
-    const res = await api<{ items: BackendAppListItem[] }>("/admin/applications?pageSize=50");
-    return res.items.map(mapListApplication);
+    return cached("applications", async () => {
+      const res = await api<{ items: BackendAppListItem[] }>("/admin/applications?pageSize=50");
+      return res.items.map(mapListApplication);
+    });
   },
 
   async getApplication(id: string): Promise<{ profile: VerificationApplication | null }> {
-    const [{ application, activation }, tutorialRes, examRes] = await Promise.all([
+    return cached(`application:${id}`, async () => {
+      const [{ application, activation }, tutorialRes, examRes] = await Promise.all([
       api<{
         application: {
           id: string;
@@ -355,6 +394,7 @@ export const adminApi = {
         })),
       },
     };
+    });
   },
 
   async recordVerificationDecision(
@@ -380,6 +420,7 @@ export const adminApi = {
         conflictDeclared: true,
       },
     });
+    invalidate("overview", "applications", `application:${id}`, "members", "audit");
     const res = await this.getApplication(id);
     return res.profile!;
   },
@@ -405,6 +446,7 @@ export const adminApi = {
         ...(reviewerNote ? { reviewerNote } : {}),
       },
     });
+    invalidate("overview", "applications", `application:${appId}`);
     const res = await this.getApplication(appId);
     return res.profile!;
   },
@@ -414,6 +456,7 @@ export const adminApi = {
       method: "POST",
       body: { reason, conflictDeclared: true },
     });
+    invalidate(`application:${appId}`, "audit");
     const res = await this.getApplication(appId);
     return res.profile!;
   },
@@ -425,8 +468,10 @@ export const adminApi = {
   },
 
   async listMembers(): Promise<MemberRecord[]> {
-    const res = await api<{ items: BackendMemberItem[] }>("/admin/members?pageSize=50");
-    return res.items.map(mapMember);
+    return cached("members", async () => {
+      const res = await api<{ items: BackendMemberItem[] }>("/admin/members?pageSize=50");
+      return res.items.map(mapMember);
+    });
   },
 
   async updateMemberStatus(id: string, status: MemberStatus): Promise<void> {
@@ -439,6 +484,7 @@ export const adminApi = {
         conflictDeclared: true,
       },
     });
+    invalidate("overview", "members", "audit");
   },
 
   async listListings(): Promise<ListingRecord[]> {
@@ -452,8 +498,10 @@ export const adminApi = {
   },
 
   async listCases(): Promise<CaseRecord[]> {
-    const res = await api<{ items: BackendComplaintItem[] }>("/admin/complaints?pageSize=50");
-    return res.items.map(mapComplaint);
+    return cached("cases", async () => {
+      const res = await api<{ items: BackendComplaintItem[] }>("/admin/complaints?pageSize=50");
+      return res.items.map(mapComplaint);
+    });
   },
 
   async updateCase(id: string, status: CaseStatus, resolutionNotes: string): Promise<void> {
@@ -467,6 +515,7 @@ export const adminApi = {
           conflictDeclared: true,
         },
       });
+      invalidate("overview", "cases", "audit");
       return;
     }
     const statusMap: Record<Exclude<CaseStatus, "RESOLVED">, string> = {
@@ -481,11 +530,14 @@ export const adminApi = {
         ...(trimmed ? { internalNote: trimmed } : {}),
       },
     });
+    invalidate("overview", "cases", "audit");
   },
 
   async listTutorials(): Promise<TutorialRecord[]> {
-    const res = await api<{ tutorials: TutorialRecord[] }>("/tutorials");
-    return res.tutorials;
+    return cached("tutorials", async () => {
+      const res = await api<{ tutorials: TutorialRecord[] }>("/tutorials");
+      return res.tutorials;
+    });
   },
 
   async uploadTutorial(input: { title: string; file: File; durationSeconds?: number }): Promise<TutorialRecord> {
@@ -494,6 +546,7 @@ export const adminApi = {
     if (input.durationSeconds) form.append("durationSeconds", String(input.durationSeconds));
     form.append("file", input.file);
     const res = await api<{ tutorial: TutorialRecord }>("/tutorials", { method: "POST", form });
+    invalidate("tutorials");
     return res.tutorial;
   },
 
@@ -502,23 +555,28 @@ export const adminApi = {
     patch: { title?: string; durationSeconds?: number | null; isActive?: boolean },
   ): Promise<TutorialRecord> {
     const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}`, { method: "PATCH", body: patch });
+    invalidate("tutorials");
     return res.tutorial;
   },
 
   async activateTutorial(id: string): Promise<TutorialRecord> {
     const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}/activate`, { method: "POST" });
+    invalidate("tutorials");
     return res.tutorial;
   },
 
   async listExamQuestions(): Promise<ExamQuestionRecord[]> {
-    const res = await api<{ questions: ExamQuestionRecord[] }>("/exam/questions");
-    return res.questions;
+    return cached("examQuestions", async () => {
+      const res = await api<{ questions: ExamQuestionRecord[] }>("/exam/questions");
+      return res.questions;
+    });
   },
 
   async createExamQuestion(
     input: Omit<ExamQuestionRecord, "id" | "createdAt" | "updatedAt">,
   ): Promise<ExamQuestionRecord> {
     const res = await api<{ question: ExamQuestionRecord }>("/exam/questions", { method: "POST", body: input });
+    invalidate("examQuestions");
     return res.question;
   },
 
@@ -530,32 +588,36 @@ export const adminApi = {
       method: "PATCH",
       body: patch,
     });
+    invalidate("examQuestions");
     return res.question;
   },
 
   async deleteExamQuestion(id: string): Promise<void> {
     await api(`/exam/questions/${id}`, { method: "DELETE" });
+    invalidate("examQuestions");
   },
 
   async listAudit(): Promise<AuditEntry[]> {
-    const res = await api<{
-      items: {
-        id: string;
-        action: string;
-        entityType: string;
-        entityId: string;
-        createdAt: string;
-        actor: { firstName: string; lastName: string; email: string } | null;
-      }[];
-    }>("/admin/audit?pageSize=50");
-    return res.items.map((item) => ({
-      id: item.id,
-      actor: item.actor ? `${item.actor.firstName} ${item.actor.lastName}`.trim() || item.actor.email : "System",
-      action: item.action,
-      target: `${item.entityType} (${item.entityId})`,
-      category: "VERIFICATION",
-      timestamp: item.createdAt.slice(0, 16).replace("T", " "),
-    }));
+    return cached("audit", async () => {
+      const res = await api<{
+        items: {
+          id: string;
+          action: string;
+          entityType: string;
+          entityId: string;
+          createdAt: string;
+          actor: { firstName: string; lastName: string; email: string } | null;
+        }[];
+      }>("/admin/audit?pageSize=50");
+      return res.items.map((item) => ({
+        id: item.id,
+        actor: item.actor ? `${item.actor.firstName} ${item.actor.lastName}`.trim() || item.actor.email : "System",
+        action: item.action,
+        target: `${item.entityType} (${item.entityId})`,
+        category: "VERIFICATION",
+        timestamp: item.createdAt.slice(0, 16).replace("T", " "),
+      }));
+    });
   },
 
   async listNotifications(): Promise<NotificationItem[]> {
