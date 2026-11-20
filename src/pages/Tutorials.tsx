@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Badge, PageHeader } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
+import { errorMessage } from "../lib/api";
 import type { ExamOption, ExamQuestionRecord, TutorialRecord } from "../types/admin";
 
 function formatDuration(seconds: number | null): string {
@@ -103,6 +104,8 @@ export default function Tutorials() {
       setVideoDuration("");
       await load();
       notify("Tutorial video uploaded.");
+    } catch (err) {
+      notify(errorMessage(err));
     } finally {
       setUploading(false);
     }

@@ -2,3 +2,8 @@ node_modules/
 dist/
 .env
 .DS_Store
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/storage/*
+!backend/storage/.gitkeep

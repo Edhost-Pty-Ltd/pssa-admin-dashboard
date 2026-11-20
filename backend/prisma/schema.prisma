@@ -1,0 +1,500 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MEMBER
+  CUSTOMER
+  ADMIN
+}
+
+enum MemberStatus {
+  active
+  suspended
+  expired
+  revoked
+  resigned
+}
+
+enum ApplicationStatus {
+  draft
+  submitted
+  under_review
+  needs_info
+  approved
+  rejected
+}
+
+enum ApplicationDecision {
+  approved
+  rejected
+  needs_info
+}
+
+enum DocumentType {
+  id_document
+  proof_of_residence
+  bank_evidence
+  business_registration
+  channel_evidence
+}
+
+enum DocumentStatus {
+  uploaded
+  under_review
+  accepted
+  needs_resubmission
+}
+
+enum ChannelStatus {
+  code_sent
+  confirmed
+}
+
+enum OtpChannel {
+  email
+  phone
+}
+
+enum IdentityType {
+  sa_id
+  passport
+}
+
+enum ExamType {
+  entrance
+  refresher
+}
+
+enum CertificateStatus {
+  active
+  expired
+  revoked
+  resigned
+}
+
+enum ComplaintType {
+  misconduct
+  impersonation
+  badge_misuse
+}
+
+enum ComplaintStatus {
+  received
+  under_review
+  awaiting_member_response
+  decided
+  under_appeal
+}
+
+enum ComplaintOutcome {
+  no_breach
+  corrective_action
+  suspension
+  revocation
+}
+
+enum RenewalStatus {
+  draft
+  submitted
+  needs_info
+  approved
+  rejected
+}
+
+enum ReminderKind {
+  days_60
+  days_30
+  days_7
+  expiry_confirmation
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?   @map("password_hash")
+  role            Role      @default(MEMBER)
+  firstName       String?   @map("first_name")
+  lastName        String?   @map("last_name")
+  tokenVersion    Int       @default(0) @map("token_version")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  reviewedRenewals   Renewal[]         @relation("RenewalReviewer")
+
+  memberProfile      MemberProfile?
+  applications       Application[]
+  documents          Document[]
+  reviewedDocs       Document[]      @relation("DocumentReviewer")
+  adminReviews       AdminReview[]
+  statusChanges      StatusHistory[] @relation("StatusActor")
+  auditLogs          AuditLog[]      @relation("AuditActor")
+  uploadedVideos     TutorialVideo[]
+  issuedCertificates Certificate[]   @relation("CertificateIssuer")
+  reviewedComplaints Complaint[]       @relation("ComplaintReviewer")
+  appealDecisions    ComplaintAppeal[] @relation("AppealReviewer")
+
+  @@index([role])
+  @@map("users")
+}
+
+model MemberProfile {
+  id              String         @id @default(cuid())
+  userId          String         @unique @map("user_id")
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName       String         @map("first_name")
+  lastName        String         @map("last_name")
+  phone           String?
+  tradingName     String?        @map("trading_name")
+  scope           String?
+  identityType    IdentityType?  @map("identity_type")
+  idNumber        String?        @unique @map("id_number")
+  physicalAddress String?        @map("physical_address")
+  city            String?
+  memberStatus    MemberStatus?  @map("member_status")
+  validFrom       DateTime?      @map("valid_from")
+  validUntil      DateTime?      @map("valid_until")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  renewals           Renewal[]
+
+  reminderPoints     ReminderPoint[]
+
+  channels           Channel[]
+  statusHistory      StatusHistory[]
+  videoProgress      VideoProgress[]
+  examAttempts       ExamAttempt[]
+  certificates       Certificate[]
+  complaints         Complaint[]
+  complaintResponses ComplaintResponse[]
+
+  @@index([memberStatus])
+  @@map("member_profiles")
+}
+
+model Application {
+  id                  String            @id @default(cuid())
+  userId              String            @map("user_id")
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  number              String            @unique
+  status              ApplicationStatus @default(draft)
+  submittedAt         DateTime?         @map("submitted_at")
+  agreementAcceptedAt DateTime?         @map("agreement_accepted_at")
+  agreementVersion    String?           @map("agreement_version")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  reviews AdminReview[]
+
+  @@index([status, submittedAt])
+  @@map("applications")
+}
+
+model Document {
+  id           String         @id @default(cuid())
+  userId       String         @map("user_id")
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         DocumentType
+  storagePath  String         @map("storage_path")
+  originalName String         @map("original_name")
+  status       DocumentStatus @default(uploaded)
+  reviewerNote String?        @map("reviewer_note")
+  reviewedAt   DateTime?      @map("reviewed_at")
+  reviewedById String?        @map("reviewed_by")
+  reviewedBy   User?          @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  retainUntil  DateTime? @map("retain_until")
+  purgedAt     DateTime? @map("purged_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId, type])
+  @@map("documents")
+}
+
+model Channel {
+  id              String        @id @default(cuid())
+  memberProfileId String        @map("member_profile_id")
+  member          MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  kind            String
+  value           String
+  status          ChannelStatus @default(code_sent)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([memberProfileId])
+  @@map("channels")
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  email      String
+  channel    OtpChannel @default(email)
+  codeHash   String     @map("code_hash")
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([email, channel])
+  @@map("otp_codes")
+}
+
+model AdminReview {
+  id               String              @id @default(cuid())
+  applicationId    String              @map("application_id")
+  application      Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId       String              @map("reviewer_id")
+  reviewer         User                @relation(fields: [reviewerId], references: [id])
+  decision         ApplicationDecision
+  reason           String
+  conflictDeclared Boolean             @map("conflict_declared")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  @@index([applicationId])
+  @@map("admin_reviews")
+}
+
+model StatusHistory {
+  id               String        @id @default(cuid())
+  memberProfileId  String        @map("member_profile_id")
+  member           MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  fromStatus       MemberStatus? @map("from_status")
+  toStatus         MemberStatus  @map("to_status")
+  reason           String
+  actorId          String        @map("actor_id")
+  actor            User          @relation("StatusActor", fields: [actorId], references: [id])
+  conflictDeclared Boolean       @map("conflict_declared")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([memberProfileId])
+  @@map("status_history")
+}
+
+model AuditLog {
+  id               String   @id @default(cuid())
+  actorId          String?  @map("actor_id")
+  actor            User?    @relation("AuditActor", fields: [actorId], references: [id])
+  action           String
+  entityType       String   @map("entity_type")
+  entityId         String   @map("entity_id")
+  reason           String?
+  conflictDeclared Boolean? @map("conflict_declared")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("audit_log")
+}
+
+model TutorialVideo {
+  id              String   @id @default(cuid())
+  title           String
+  storagePath     String   @map("storage_path")
+  durationSeconds Int?     @map("duration_seconds")
+  isActive        Boolean  @default(false) @map("is_active")
+  uploadedById    String?  @map("uploaded_by")
+  uploadedBy      User?    @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  progress VideoProgress[]
+
+  @@map("tutorial_videos")
+}
+
+model VideoProgress {
+  id                  String        @id @default(cuid())
+  memberProfileId     String        @map("member_profile_id")
+  member              MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  tutorialVideoId     String        @map("tutorial_video_id")
+  tutorialVideo       TutorialVideo @relation(fields: [tutorialVideoId], references: [id], onDelete: Cascade)
+  watchedSeconds      Int           @default(0) @map("watched_seconds")
+  maxPositionSeconds  Int           @default(0) @map("max_position_seconds")
+  lastPositionSeconds Int?          @map("last_position_seconds")
+  lastReportedAt      DateTime?     @map("last_reported_at")
+  completed           Boolean       @default(false)
+  completedAt         DateTime?     @map("completed_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  @@unique([memberProfileId, tutorialVideoId])
+  @@map("video_progress")
+}
+
+model ExamQuestion {
+  id              String   @id @default(cuid())
+  prompt          String
+  options         Json
+  correctOptionId String   @map("correct_option_id")
+  isCritical      Boolean  @default(false) @map("is_critical")
+  topic           String?
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("exam_questions")
+}
+
+model ExamAttempt {
+  id              String        @id @default(cuid())
+  memberProfileId String        @map("member_profile_id")
+  member          MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  type            ExamType      @default(entrance)
+  questionIds     String[]      @default([]) @map("question_ids")
+  answers         Json?
+  score           Int?
+  percent         Int?
+  passed          Boolean?
+  criticalFailed  Boolean?      @map("critical_failed")
+  startedAt       DateTime      @default(now()) @map("started_at")
+  expiresAt       DateTime      @map("expires_at")
+  submittedAt     DateTime?     @map("submitted_at")
+
+  @@index([memberProfileId, startedAt])
+  @@map("exam_attempts")
+}
+
+model Certificate {
+  id              String            @id @default(cuid())
+  number          String            @unique
+  memberProfileId String            @map("member_profile_id")
+  member          MemberProfile     @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  issuedAt        DateTime          @default(now()) @map("issued_at")
+  validFrom       DateTime          @map("valid_from")
+  validUntil      DateTime          @map("valid_until")
+  scope           String?
+  pdfPath         String?           @map("pdf_path")
+  qrTargetUrl     String            @map("qr_target_url")
+  status          CertificateStatus @default(active)
+  issuedById      String?           @map("issued_by")
+  issuedBy        User?             @relation("CertificateIssuer", fields: [issuedById], references: [id])
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  @@index([memberProfileId])
+  @@map("certificates")
+}
+
+model Complaint {
+  id                  String            @id @default(cuid())
+  referenceNumber     String?           @unique @map("reference_number")
+  memberProfileId     String?           @map("member_profile_id")
+  member              MemberProfile?    @relation(fields: [memberProfileId], references: [id])
+  /** Free-text name or social handle when the subject is not on the register (impersonation / badge_misuse). */
+  subjectLabel        String?           @map("subject_label")
+  type                ComplaintType
+  description         String?
+  status              ComplaintStatus   @default(received)
+  contactName         String?           @map("contact_name")
+  contactEmail        String?           @map("contact_email")
+  contactPhone        String?           @map("contact_phone")
+  consentAt           DateTime?         @map("consent_at")
+  isDraft             Boolean           @default(true) @map("is_draft")
+  acknowledgedAt      DateTime?         @map("acknowledged_at")
+  memberResponseDueAt DateTime?         @map("member_response_due_at")
+  decisionDueAt       DateTime?         @map("decision_due_at")
+  decidedAt           DateTime?         @map("decided_at")
+  appealDeadline      DateTime?         @map("appeal_deadline")
+  outcome             ComplaintOutcome?
+  reasons             String?
+  conflictDeclared    Boolean?          @map("conflict_declared")
+  reviewerId          String?           @map("reviewer_id")
+  reviewer            User?             @relation("ComplaintReviewer", fields: [reviewerId], references: [id])
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  evidence  ComplaintEvidence[]
+  responses ComplaintResponse[]
+  appeals   ComplaintAppeal[]
+
+  @@index([status])
+  @@map("complaints")
+}
+
+model ComplaintEvidence {
+  id           String    @id @default(cuid())
+  complaintId  String    @map("complaint_id")
+  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  storagePath  String    @map("storage_path")
+  originalName String    @map("original_name")
+  mimeType     String    @map("mime_type")
+  sizeBytes    Int       @map("size_bytes")
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
+
+  @@index([complaintId])
+  @@map("complaint_evidence")
+}
+
+model ComplaintResponse {
+  id              String        @id @default(cuid())
+  complaintId     String        @map("complaint_id")
+  complaint       Complaint     @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  memberProfileId String        @map("member_profile_id")
+  member          MemberProfile @relation(fields: [memberProfileId], references: [id])
+  body            String
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([complaintId])
+  @@map("complaint_responses")
+}
+
+model ComplaintAppeal {
+  id               String    @id @default(cuid())
+  complaintId      String    @map("complaint_id")
+  complaint        Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  reason           String
+  lodgedAt         DateTime  @default(now()) @map("lodged_at")
+  decidedAt        DateTime? @map("decided_at")
+  decision         String?
+  reasons          String?
+  conflictDeclared Boolean?  @map("conflict_declared")
+  reviewerId       String?   @map("reviewer_id")
+  reviewer         User?     @relation("AppealReviewer", fields: [reviewerId], references: [id])
+
+  @@index([complaintId])
+  @@map("complaint_appeals")
+}
+
+model Renewal {
+  id                    String         @id @default(cuid())
+  memberProfileId       String         @map("member_profile_id")
+  member                MemberProfile  @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  status                RenewalStatus  @default(draft)
+  windowOpensAt         DateTime?      @map("window_opens_at")
+  startedAt             DateTime       @default(now()) @map("started_at")
+  submittedAt           DateTime?      @map("submitted_at")
+  declarationAcceptedAt DateTime?      @map("declaration_accepted_at")
+  declarationVersion    String?        @map("declaration_version")
+  declarationStatements String?        @map("declaration_statements")
+  decisionReason        String?        @map("decision_reason")
+  conflictDeclared      Boolean?       @map("conflict_declared")
+  reviewerId            String?        @map("reviewer_id")
+  reviewer              User?          @relation("RenewalReviewer", fields: [reviewerId], references: [id])
+  decidedAt             DateTime?      @map("decided_at")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  @@index([memberProfileId, status])
+  @@map("renewals")
+}
+
+model ReminderPoint {
+  id              String        @id @default(cuid())
+  memberProfileId String        @map("member_profile_id")
+  member          MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  kind            ReminderKind
+  dueAt           DateTime      @map("due_at")
+  sentAt          DateTime?     @map("sent_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([memberProfileId, kind, dueAt])
+  @@index([dueAt, sentAt])
+  @@map("reminder_points")
+}
