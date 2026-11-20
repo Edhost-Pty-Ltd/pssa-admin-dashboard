@@ -95,7 +95,7 @@ function mapDocLabel(type: string): string {
 
 function mapMemberStatus(status: string | null | undefined): MemberStatus {
   if (status === "suspended" || status === "revoked") return "SUSPENDED";
-  if (status === "pending") return "PROBATION";
+  if (!status || status === "pending") return "PROBATION";
   return "ACTIVE";
 }
 
@@ -240,6 +240,50 @@ function mapComplaint(item: BackendComplaintItem): CaseRecord {
   };
 }
 
+function mapOnboardingMemberToApplication(item: BackendMemberItem): VerificationApplication {
+  const fullName = `${item.firstName} ${item.lastName}`.trim() || item.email;
+  return {
+    id: `member:${item.id}`,
+    referenceCode: "ONBOARDING",
+    applicantName: fullName,
+    businessName: item.tradingName ?? fullName,
+    email: item.email,
+    phone: "",
+    city: "",
+    province: "South Africa",
+    primaryCategory: item.scope ?? "Personal Shopping",
+    categories: item.scope ? [item.scope] : ["Personal Shopping"],
+    yearsExperience: 0,
+    saIdLast4: "••••",
+    bio: item.scope ?? "",
+    skills: [],
+    languages: [],
+    serviceAreas: [],
+    status: "PENDING",
+    submittedAt: item.createdAt,
+    createdAt: item.createdAt,
+    reviewerNotes: "Member is currently undergoing onboarding verification (application not yet submitted).",
+    completionPercent: 25,
+    emailVerifiedAt: item.createdAt,
+    phoneVerifiedAt: null,
+    conductAcceptedAt: null,
+    conductVersion: null,
+    documents: [],
+    channels: [],
+    assessments: [],
+    tutorialProgress: { completed: 0, total: 1 },
+    decisions: [],
+  };
+}
+
+function mergeOnboardingMembers(apps: VerificationApplication[], members: BackendMemberItem[]): VerificationApplication[] {
+  const appEmails = new Set(apps.map((a) => a.email.toLowerCase()));
+  const onboarding = members
+    .filter((m) => (!m.memberStatus || m.memberStatus === "pending") && !appEmails.has(m.email.toLowerCase()))
+    .map(mapOnboardingMemberToApplication);
+  return [...apps, ...onboarding];
+}
+
 export const adminApi = {
   isMockMode: () => false,
   clearCache: () => cache.clear(),
@@ -252,8 +296,9 @@ export const adminApi = {
         cases: BackendComplaintItem[];
         listings: ListingRecord[];
       }>("/admin/overview");
+      const mappedApps = res.applications.map(mapListApplication);
       return {
-        applications: res.applications.map(mapListApplication),
+        applications: mergeOnboardingMembers(mappedApps, res.members),
         members: res.members.map(mapMember),
         cases: res.cases.map(mapComplaint),
         listings: res.listings ?? [],
@@ -263,13 +308,88 @@ export const adminApi = {
 
   async listApplications(): Promise<VerificationApplication[]> {
     return cached("applications", async () => {
-      const res = await api<{ items: BackendAppListItem[] }>("/admin/applications?pageSize=50");
-      return res.items.map(mapListApplication);
+      const [appsRes, membersRes] = await Promise.all([
+        api<{ items: BackendAppListItem[] }>("/admin/applications?pageSize=50"),
+        api<{ items: BackendMemberItem[] }>("/admin/members?pageSize=50"),
+      ]);
+      return mergeOnboardingMembers(appsRes.items.map(mapListApplication), membersRes.items);
     });
   },
 
   async getApplication(id: string): Promise<{ profile: VerificationApplication | null }> {
     return cached(`application:${id}`, async () => {
+      if (id.startsWith("member:")) {
+        const memberId = id.slice("member:".length);
+        const res = await api<{
+          member: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+            tradingName: string | null;
+            scope: string | null;
+            memberStatus: string | null;
+            city: string | null;
+            createdAt: string;
+            channels: { id: string; kind: string; value: string; status: string }[];
+            history: {
+              id: string;
+              to: string;
+              reason: string;
+              at: string;
+              actor: { firstName: string; lastName: string; email: string } | null;
+            }[];
+          };
+        }>(`/admin/members/${memberId}`);
+        const m = res.member;
+        const fullName = `${m.firstName} ${m.lastName}`.trim() || m.email;
+        return {
+          profile: {
+            id,
+            referenceCode: "ONBOARDING",
+            applicantName: fullName,
+            businessName: m.tradingName ?? fullName,
+            email: m.email,
+            phone: m.phone ?? "",
+            city: m.city ?? "",
+            province: "South Africa",
+            primaryCategory: m.scope ?? "Personal Shopping",
+            categories: m.scope ? [m.scope] : ["Personal Shopping"],
+            yearsExperience: 0,
+            saIdLast4: "••••",
+            bio: m.scope ?? "Member is currently completing onboarding verification.",
+            skills: [],
+            languages: [],
+            serviceAreas: m.city ? [m.city] : [],
+            status: m.memberStatus === "active" ? "VERIFIED" : m.memberStatus === "suspended" ? "SUSPENDED" : "PENDING",
+            submittedAt: m.createdAt,
+            createdAt: m.createdAt,
+            reviewerNotes: "Onboarding in progress — awaiting final application submission.",
+            completionPercent: 25,
+            emailVerifiedAt: m.createdAt,
+            phoneVerifiedAt: m.phone ? m.createdAt : null,
+            conductAcceptedAt: null,
+            conductVersion: null,
+            documents: [],
+            channels: m.channels.map((ch) => ({
+              id: ch.id,
+              platform: ch.kind,
+              handle: ch.value,
+              confirmed: ch.status === "verified" || ch.status === "confirmed",
+            })),
+            assessments: [],
+            tutorialProgress: { completed: 0, total: 1 },
+            decisions: m.history.map((h) => ({
+              id: h.id,
+              decision: h.to === "active" ? "APPROVED" : h.to === "suspended" ? "SUSPENDED" : "UNDER_REVIEW",
+              reason: h.reason,
+              reviewer: h.actor ? `${h.actor.firstName} ${h.actor.lastName}`.trim() || h.actor.email : "Admin",
+              createdAt: h.at,
+            })),
+          },
+        };
+      }
       const [{ application, activation }, tutorialRes, examRes] = await Promise.all([
       api<{
         application: {
@@ -404,6 +524,26 @@ export const adminApi = {
     checks?: { identity: boolean; contact: boolean; qualifications: boolean; conduct: boolean; method?: string },
   ): Promise<VerificationApplication> {
     void checks;
+    if (id.startsWith("member:")) {
+      const memberId = id.slice("member:".length);
+      const status =
+        decision === "APPROVED" || decision === "REINSTATED"
+          ? "active"
+          : decision === "REJECTED" || decision === "SUSPENDED"
+            ? "suspended"
+            : "pending";
+      await api(`/admin/members/${memberId}/status`, {
+        method: "POST",
+        body: {
+          status,
+          reason: reason && reason.trim().length >= 10 ? reason.trim() : "Admin verification decision recorded.",
+          conflictDeclared: true,
+        },
+      });
+      invalidate("overview", "applications", `application:${id}`, "members", "audit");
+      const res = await this.getApplication(id);
+      return res.profile!;
+    }
     const decisionMap: Record<VerificationDecision, "approved" | "rejected" | "needs_info"> = {
       APPROVED: "approved",
       REINSTATED: "approved",
