@@ -252,7 +252,7 @@ function mapMember(item: BackendMemberItem): MemberRecord {
     businessName: item.tradingName ?? fullName,
     email: item.email,
     city: "South Africa",
-    tier: "VERIFIED",
+    tier: item.memberStatus === "active" ? "VERIFIED" : "ASSOCIATE",
     status: mapMemberStatus(item.memberStatus),
     categories: item.scope ? [item.scope] : ["Personal Shopping"],
     verifiedChecks: 1,
