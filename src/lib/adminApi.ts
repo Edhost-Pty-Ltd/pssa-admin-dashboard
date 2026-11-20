@@ -9,6 +9,7 @@ import type {
   ExamQuestionRecord,
   ListingRecord,
   ListingStatus,
+  MemberDetailRecord,
   MemberRecord,
   MemberStatus,
   NotificationItem,
@@ -614,6 +615,13 @@ export const adminApi = {
     });
   },
 
+  async getMemberDetail(id: string): Promise<MemberDetailRecord | null> {
+    return cached(`member:${id}`, async () => {
+      const res = await api<{ member: MemberDetailRecord }>(`/admin/members/${id}`);
+      return res.member ?? null;
+    });
+  },
+
   async updateMemberStatus(id: string, status: MemberStatus): Promise<void> {
     const backendStatus = status === "SUSPENDED" ? "suspended" : status === "PROBATION" ? "pending" : "active";
     await api(`/admin/members/${id}/status`, {
@@ -624,7 +632,7 @@ export const adminApi = {
         conflictDeclared: true,
       },
     });
-    invalidate("overview", "members", "audit");
+    invalidate("overview", "members", `member:${id}`, "audit");
   },
 
   async listListings(): Promise<ListingRecord[]> {
@@ -761,11 +769,28 @@ export const adminApi = {
   },
 
   async listNotifications(): Promise<NotificationItem[]> {
-    return [];
+    return cached("notifications", async () => {
+      const res = await api<{
+        notifications: {
+          id: string;
+          title: string;
+          body: string;
+          type: "INFO" | "WARNING" | "SUCCESS";
+          link: string | null;
+          read: boolean;
+          createdAt: string;
+        }[];
+      }>("/admin/notifications");
+      return res.notifications.map((n) => ({
+        ...n,
+        createdAt: n.createdAt.slice(0, 16).replace("T", " "),
+      }));
+    });
   },
 
   async markAllNotificationsRead(): Promise<void> {
-    // No backend notifications table in Phase 1.
+    await api("/admin/notifications/read-all", { method: "POST" });
+    invalidate("notifications");
   },
 
   async getSettings(): Promise<AdminSettings> {

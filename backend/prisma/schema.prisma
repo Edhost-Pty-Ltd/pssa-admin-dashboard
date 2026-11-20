@@ -498,3 +498,16 @@ model ReminderPoint {
   @@index([dueAt, sentAt])
   @@map("reminder_points")
 }
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  type      String   @default("INFO")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([read, createdAt])
+  @@map("admin_notifications")
+}

@@ -107,6 +107,17 @@ export async function getMemberDetail(memberProfileId: string) {
       physicalAddress: true,
       city: true,
       identityType: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          applications: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, number: true, status: true, submittedAt: true },
+          },
+        },
+      },
       channels: {
         select: { id: true, kind: true, value: true, status: true, createdAt: true },
         orderBy: { createdAt: "asc" },
@@ -134,6 +145,7 @@ export async function getMemberDetail(memberProfileId: string) {
     physicalAddress,
     city,
     identityType,
+    application: row.user.applications[0] ?? null,
     channels,
     history: statusHistory.map((entry) => ({
       id: entry.id,

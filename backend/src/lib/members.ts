@@ -151,7 +151,7 @@ export async function createMember(input: MemberRegistration) {
   if (input.idNumber && (await prisma.memberProfile.findUnique({ where: { idNumber: input.idNumber }, select: { id: true } }))) {
     throw conflict("A member with this ID number is already registered.", { fields: { idNumber: "is already registered" } });
   }
-  return prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       role: "MEMBER",
       email: input.email,
@@ -171,6 +171,17 @@ export async function createMember(input: MemberRegistration) {
     },
     select: userSelect,
   });
+  await prisma.adminNotification
+    .create({
+      data: {
+        title: "New member account created",
+        body: `${created.firstName} ${created.lastName} (${created.email}) registered and must complete verification before activation.`,
+        type: "INFO",
+        link: "/admin/verifications",
+      },
+    })
+    .catch(() => {});
+  return created;
 }
 
 const passwordlessMemberSelect = { id: true, email: true, role: true } as const;
@@ -184,7 +195,7 @@ export async function findOrCreatePasswordlessMember(email: string) {
   if (existing) return existing;
 
   try {
-    return await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         role: "MEMBER",
         email,
@@ -195,6 +206,17 @@ export async function findOrCreatePasswordlessMember(email: string) {
       },
       select: passwordlessMemberSelect,
     });
+    await prisma.adminNotification
+      .create({
+        data: {
+          title: "New member account created",
+          body: `${email} started onboarding and must complete verification before activation.`,
+          type: "INFO",
+          link: "/admin/verifications",
+        },
+      })
+      .catch(() => {});
+    return created;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return prisma.user.findUniqueOrThrow({ where: { email }, select: passwordlessMemberSelect });

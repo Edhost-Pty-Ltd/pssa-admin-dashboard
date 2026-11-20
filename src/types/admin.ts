@@ -207,8 +207,56 @@ export interface NotificationItem {
   title: string;
   body: string;
   type: "INFO" | "WARNING" | "SUCCESS";
+  link?: string | null;
   read: boolean;
   createdAt: string;
+}
+
+export interface MemberDetailRecord {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  tradingName: string | null;
+  scope: string | null;
+  memberStatus: string | null;
+  physicalAddress: string | null;
+  city: string | null;
+  identityType: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  certificate: {
+    id: string;
+    number: string;
+    issuedAt: string;
+    validFrom: string;
+    validUntil: string;
+    scope: string | null;
+    qrTargetUrl: string;
+    status: string;
+  } | null;
+  application: {
+    id: string;
+    number: string;
+    status: string;
+    submittedAt: string | null;
+  } | null;
+  channels: {
+    id: string;
+    kind: string;
+    value: string;
+    status: string;
+  }[];
+  history: {
+    id: string;
+    from: string | null;
+    to: string;
+    reason: string;
+    at: string;
+    actor: { firstName: string; lastName: string; email: string } | null;
+  }[];
 }
 
 export interface AdminSettings {

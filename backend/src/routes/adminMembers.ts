@@ -217,3 +217,19 @@ adminMembersRouter.get("/audit", async (req, res) => {
   const query = auditListSchema.parse(req.query);
   res.json(await listAuditLog(query));
 });
+
+adminMembersRouter.get("/notifications", async (_req, res) => {
+  const notifications = await prisma.adminNotification.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  res.json({ notifications });
+});
+
+adminMembersRouter.post("/notifications/read-all", async (_req, res) => {
+  await prisma.adminNotification.updateMany({
+    where: { read: false },
+    data: { read: true },
+  });
+  res.json({ ok: true });
+});
