@@ -26,7 +26,7 @@ export default function Settings() {
       <PageHeader
         kicker="Configuration"
         title="Association & API Settings"
-        description="Configure PSSA compliance defaults and inspect the frontend/backend adapter status."
+        description="Configure PSASA compliance defaults and inspect the frontend/backend adapter status."
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

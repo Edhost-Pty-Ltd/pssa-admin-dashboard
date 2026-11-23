@@ -26,7 +26,7 @@ export default function Listings() {
       <PageHeader
         kicker="Trust & Profiles"
         title="Verified Shopper Profiles"
-        description="Verify that personal shopper specialty profiles and declared sourcing channels comply with PSSA safety policies."
+        description="Verify that personal shopper specialty profiles and declared sourcing channels comply with PSASA safety policies."
       />
 
       <div className="flex flex-wrap gap-1.5">
