@@ -70,7 +70,7 @@ export default function Login() {
         </span>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-navy">Admin Sign In</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-muted">
-          Sign in with your PSSA Admin account to manage verifications, tutorials, assessments, and safety cases.
+          Sign in with your PSASA Admin account to manage verifications, tutorials, assessments, and safety cases.
         </p>
 
         {error && (

@@ -153,7 +153,7 @@ export default function Overview() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sand">
               <span className="h-1.5 w-1.5 rounded-full bg-green" />
-              {getGreeting()} · PSSA Trust &amp; Safety Desk
+              {getGreeting()} · PSASA Trust &amp; Safety Desk
             </div>
             <h1 className="mt-3.5 font-display text-2xl font-semibold tracking-tight text-white sm:text-[34px] sm:leading-[1.12]">
               Shopper Verification &amp; <span className="text-sand">Scam Prevention</span>
