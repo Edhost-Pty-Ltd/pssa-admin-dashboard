@@ -532,7 +532,7 @@ export default function Tutorials() {
                   <Icon name="play" size={28} className="text-sand" />
                   <p className="mt-2 text-sm font-semibold">Seeded sandbox video placeholder</p>
                   <p className="mt-1 text-xs text-white/60">
-                    Upload a real video file via "Upload Tutorial Video" to preview playback in sandbox mode, or connect the PSSA backend to stream stored videos.
+                    Upload a real video file via "Upload Tutorial Video" to preview playback in sandbox mode, or connect the PSASA backend to stream stored videos.
                   </p>
                 </div>
               )}

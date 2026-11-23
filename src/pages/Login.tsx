@@ -50,7 +50,7 @@ export default function Login() {
         </span>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-navy">Admin Sign In</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-muted">
-          Frontend sandbox mode: click Sign In to enter the PSSA Admin Dashboard.
+          Frontend sandbox mode: click Sign In to enter the PSASA Admin Dashboard.
         </p>
 
         <div className="mt-6 space-y-4">

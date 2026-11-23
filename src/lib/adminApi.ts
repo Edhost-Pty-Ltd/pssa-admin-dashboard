@@ -31,7 +31,7 @@ import { api } from "./api";
 /**
  * Safe frontend isolation flag:
  * - true  => uses in-memory mock data so the admin dashboard can be edited & tested without backend dependencies.
- * - false => routes calls to the PSSA backend via src/lib/api.ts.
+ * - false => routes calls to the PSASA backend via src/lib/api.ts.
  */
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== "false";
 
