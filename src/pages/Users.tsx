@@ -95,7 +95,7 @@ export default function Users() {
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
               <span className="text-xs font-semibold text-navy">
-                {m.verifiedChecks} checks · ★ {m.rating.toFixed(1)}
+                {m.memberNumber} · Joined {m.joinedAt}
               </span>
               {m.status !== "ACTIVE" ? (
                 <button
@@ -127,7 +127,7 @@ export default function Users() {
                   <th className="px-5 py-3.5">Shopper</th>
                   <th className="px-5 py-3.5">Tier</th>
                   <th className="px-5 py-3.5">Specialties</th>
-                  <th className="px-5 py-3.5">Checks / Rating</th>
+                  <th className="px-5 py-3.5">Certificate / Joined</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5 text-right">Standing</th>
                 </tr>
@@ -156,7 +156,7 @@ export default function Users() {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-xs font-semibold text-navy">
-                      {m.verifiedChecks} verifications · ★ {m.rating.toFixed(1)}
+                      {m.memberNumber} · {m.joinedAt}
                     </td>
                     <td className="px-5 py-4">
                       <Badge tone={statusTone(m.status)}>{m.status}</Badge>
