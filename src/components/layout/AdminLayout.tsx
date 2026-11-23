@@ -166,7 +166,7 @@ function SidebarContent({
             onMouseEnter={(e) => showTooltip(e, "PSSA Operations")}
             onMouseLeave={hideTooltip}
             className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-white/14 to-white/4 font-display text-xl font-bold text-white ring-1 ring-white/15 transition hover:scale-105 hover:ring-green/50"
-            aria-label="PSSA Admin home"
+            aria-label="PSASA Admin home"
           >
             P<span className="text-green">.</span>
           </Link>
