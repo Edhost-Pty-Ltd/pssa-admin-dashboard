@@ -18,6 +18,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     items: [
       { to: "/admin", label: "Overview", icon: "dashboard", end: true },
       { to: "/admin/verifications", label: "Verifications", icon: "shield" },
+      { to: "/admin/renewals", label: "Renewals", icon: "audit" },
       { to: "/admin/users", label: "Members", icon: "people" },
     ],
   },

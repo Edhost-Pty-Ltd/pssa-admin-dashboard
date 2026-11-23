@@ -13,6 +13,8 @@ import type {
   MemberRecord,
   MemberStatus,
   NotificationItem,
+  RenewalChecklistItem,
+  RenewalRecord,
   TutorialRecord,
   VerificationApplication,
   VerificationDecision,
@@ -857,6 +859,29 @@ export const adminApi = {
   async markAllNotificationsRead(): Promise<void> {
     await api("/admin/notifications/read-all", { method: "POST" });
     invalidate("notifications");
+  },
+
+  async listRenewals(): Promise<RenewalRecord[]> {
+    return cached("renewals", async () => {
+      const res = await api<{ items: RenewalRecord[] }>("/admin/renewals?pageSize=50");
+      return res.items;
+    });
+  },
+
+  async getRenewalDetail(id: string): Promise<{ renewal: RenewalRecord; checklist: RenewalChecklistItem[] }> {
+    return api<{ renewal: RenewalRecord; checklist: RenewalChecklistItem[] }>(`/admin/renewals/${id}`);
+  },
+
+  async decideRenewal(
+    id: string,
+    decision: "approved" | "rejected" | "needs_info",
+    reason: string,
+  ): Promise<void> {
+    await api(`/admin/renewals/${id}/decision`, {
+      method: "POST",
+      body: { decision, reason: reason.trim(), conflictDeclared: true },
+    });
+    invalidate("renewals", "members", "overview", "audit");
   },
 
   async getSettings(): Promise<AdminSettings> {
