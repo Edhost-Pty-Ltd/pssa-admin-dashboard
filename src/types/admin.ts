@@ -166,6 +166,8 @@ export interface CaseRecord {
 export interface TutorialRecord {
   id: string;
   title: string;
+  description: string | null;
+  version: number;
   durationSeconds: number | null;
   isActive: boolean;
   storagePath: string;

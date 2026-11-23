@@ -754,9 +754,17 @@ export const adminApi = {
     });
   },
 
-  async uploadTutorial(input: { title: string; file: File; durationSeconds?: number }): Promise<TutorialRecord> {
+  async uploadTutorial(input: {
+    title: string;
+    description?: string;
+    version?: number;
+    file: File;
+    durationSeconds?: number;
+  }): Promise<TutorialRecord> {
     const form = new FormData();
     form.append("title", input.title);
+    if (input.description?.trim()) form.append("description", input.description.trim());
+    if (input.version !== undefined) form.append("version", String(input.version));
     if (input.durationSeconds) form.append("durationSeconds", String(input.durationSeconds));
     form.append("file", input.file);
     const res = await api<{ tutorial: TutorialRecord }>("/tutorials", { method: "POST", form });
@@ -766,7 +774,13 @@ export const adminApi = {
 
   async updateTutorial(
     id: string,
-    patch: { title?: string; durationSeconds?: number | null; isActive?: boolean },
+    patch: {
+      title?: string;
+      description?: string | null;
+      version?: number;
+      durationSeconds?: number | null;
+      isActive?: boolean;
+    },
   ): Promise<TutorialRecord> {
     const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}`, { method: "PATCH", body: patch });
     invalidate("tutorials");
