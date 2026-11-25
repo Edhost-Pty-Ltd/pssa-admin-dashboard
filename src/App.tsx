@@ -6,6 +6,8 @@ import Login from "./pages/Login";
 import MemberDetail from "./pages/MemberDetail";
 import Notifications from "./pages/Notifications";
 import Overview from "./pages/Overview";
+import Renewals from "./pages/Renewals";
+import Settings from "./pages/Settings";
 import Tutorials from "./pages/Tutorials";
 import Users from "./pages/Users";
 import VerificationDetail from "./pages/VerificationDetail";
@@ -22,6 +24,7 @@ export default function App() {
           <Route index element={<Overview />} />
           <Route path="verifications" element={<Verifications />} />
           <Route path="verifications/:id" element={<VerificationDetail />} />
+          <Route path="renewals" element={<Renewals />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<MemberDetail />} />
           <Route path="complaints" element={<Complaints />} />

@@ -298,3 +298,27 @@ export interface AdminSettings {
   autoPublishApprovedListings: boolean;
   requireIdVerification: boolean;
 }
+
+export interface RenewalRecord {
+  id: string;
+  memberProfileId: string;
+  status: "draft" | "submitted" | "needs_info" | "approved" | "rejected";
+  submittedAt: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  member?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    tradingName: string | null;
+    memberStatus: string | null;
+    validUntil: string | null;
+    user?: { email: string };
+  };
+}
+
+export interface RenewalChecklistItem {
+  key: string;
+  label: string;
+  complete: boolean;
+}
