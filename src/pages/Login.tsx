@@ -1,15 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wordmark } from "../components/Wordmark";
+import { api, errorMessage } from "../lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("admin@pssa.org.za");
-  const [password, setPassword] = useState("••••••••••••");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/admin");
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await api<{ user: { id: string; email: string; role: string } }>("/auth/login", {
+        method: "POST",
+        body: { email, password },
+      });
+      if (res.user.role !== "ADMIN") {
+        await api("/auth/logout", { method: "POST" }).catch(() => {});
+        setError("This account does not have PSSA Admin access.");
+        return;
+      }
+      navigate("/admin");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -50,8 +70,14 @@ export default function Login() {
         </span>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-navy">Admin Sign In</h1>
         <p className="mt-1.5 text-xs leading-relaxed text-muted">
-          Frontend sandbox mode: click Sign In to enter the PSASA Admin Dashboard.
+          Sign in with your PSASA Admin account to manage verifications, tutorials, assessments, and safety cases.
         </p>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-[#f9c8c4] bg-[#fff0ef] px-3.5 py-2.5 text-xs font-medium text-[#b42318]">
+            {error}
+          </div>
+        )}
 
         <div className="mt-6 space-y-4">
           <div>
@@ -78,9 +104,10 @@ export default function Login() {
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-xl bg-green py-3 text-sm font-bold text-white shadow-[0_12px_28px_-10px_rgba(24,162,105,0.65)] transition hover:-translate-y-0.5 hover:bg-green-dark"
+          disabled={busy}
+          className="mt-6 w-full rounded-xl bg-green py-3 text-sm font-bold text-white shadow-[0_12px_28px_-10px_rgba(24,162,105,0.65)] transition hover:-translate-y-0.5 hover:bg-green-dark disabled:opacity-60"
         >
-          Sign In to Dashboard
+          {busy ? "Signing in..." : "Sign In to Dashboard"}
         </button>
       </form>
     </div>

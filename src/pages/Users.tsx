@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Badge, PageHeader, statusTone } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
@@ -76,12 +77,12 @@ export default function Users() {
         {visibleShoppers.map((m) => (
           <div key={m.id} className="glass-card rounded-2xl p-4">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate font-bold text-navy">{m.fullName}</p>
+              <Link to={`/admin/users/${m.id}`} className="min-w-0 group">
+                <p className="truncate font-bold text-navy group-hover:text-green-dark">{m.fullName}</p>
                 <p className="text-xs text-muted">
                   {m.memberNumber} · {m.businessName} · {m.city}
                 </p>
-              </div>
+              </Link>
               <Badge tone={statusTone(m.status)}>{m.status}</Badge>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -135,10 +136,12 @@ export default function Users() {
                 {visibleShoppers.map((m) => (
                   <tr key={m.id} className="hover:bg-soft/50">
                     <td className="px-5 py-4">
-                      <p className="font-bold text-navy">{m.fullName}</p>
-                      <p className="text-xs text-muted">
-                        {m.memberNumber} · {m.businessName} · {m.city}
-                      </p>
+                      <Link to={`/admin/users/${m.id}`} className="group block">
+                        <p className="font-bold text-navy group-hover:text-green-dark">{m.fullName}</p>
+                        <p className="text-xs text-muted">
+                          {m.memberNumber} · {m.businessName} · {m.city}
+                        </p>
+                      </Link>
                     </td>
                     <td className="px-5 py-4">
                       <Badge tone={statusTone(m.tier)}>{m.tier}</Badge>

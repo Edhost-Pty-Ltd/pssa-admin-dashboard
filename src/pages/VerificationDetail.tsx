@@ -98,7 +98,8 @@ export default function VerificationDetail() {
   const assessmentPassed = app.assessments.some((a) => a.passed);
   const failedAttempts = app.assessments.filter((a) => !a.passed).length;
   const contactReady = Boolean(app.emailVerifiedAt && app.phoneVerifiedAt && app.conductAcceptedAt);
-  const gatesReady = docsReady && channelReady && assessmentPassed && contactReady;
+  const isOnboarding = app.referenceCode === "ONBOARDING";
+  const gatesReady = !isOnboarding && docsReady && channelReady && assessmentPassed && contactReady;
 
   const actions = ACTIONS[app.status] ?? [];
   const needsReason = decision === "INFO_REQUIRED" || decision === "REJECTED" || decision === "SUSPENDED";
@@ -438,7 +439,9 @@ export default function VerificationDetail() {
                 app.status !== "VERIFIED" &&
                 !gatesReady && (
                   <p className="mt-3 text-xs text-[#b42318]">
-                    Approval is blocked until every admission gate is met.
+                    {isOnboarding
+                      ? "Member is still completing onboarding and has not submitted their verification application yet."
+                      : "Approval is blocked until every admission gate is met."}
                   </p>
                 )}
             </section>

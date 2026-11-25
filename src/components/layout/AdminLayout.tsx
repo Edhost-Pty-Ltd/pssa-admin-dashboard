@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { adminApi } from "../../lib/adminApi";
+import { api } from "../../lib/api";
 import { Icon, type IconName } from "../Icon";
 import { Wordmark } from "../Wordmark";
 
@@ -243,21 +244,31 @@ function SidebarContent({
           collapsed ? "p-2.5" : "p-4"
         }`}
       >
-        <Link
-          to="/login"
-          onClick={onNavigate}
+        <button
+          type="button"
+          onClick={async () => {
+            onNavigate?.();
+            try {
+              sessionStorage.removeItem("pssa_admin_authed");
+            } catch {
+              // ignore
+            }
+            adminApi.clearCache();
+            await api("/auth/logout", { method: "POST" }).catch(() => {});
+            window.location.assign("/login");
+          }}
           onMouseEnter={(e) => showTooltip(e, "Sign out")}
           onMouseLeave={hideTooltip}
           onFocus={(e) => showTooltip(e, "Sign out")}
           onBlur={hideTooltip}
           aria-label="Sign out"
-          className={`flex items-center rounded-2xl text-xs font-medium text-white/65 transition hover:bg-white/8 hover:text-white ${
+          className={`flex w-full items-center rounded-2xl text-xs font-medium text-white/65 transition hover:bg-white/8 hover:text-white ${
             collapsed ? "justify-center p-2.5" : "gap-2.5 px-3.5 py-2"
           }`}
         >
           <Icon name="logout" size={16} />
           {!collapsed && <span>Sign out</span>}
-        </Link>
+        </button>
 
         {!isMobile && onToggleCollapse && (
           <button
@@ -307,7 +318,15 @@ export function AdminLayout() {
     }
   });
   const [unread, setUnread] = useState(0);
+  const [authChecked, setAuthChecked] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("pssa_admin_authed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const location = useLocation();
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -319,16 +338,52 @@ export function AdminLayout() {
       try {
         localStorage.setItem("pssa_sidebar_collapsed", String(next));
       } catch {
+        // Ignore storage errors in restricted browsing modes.
       }
       return next;
     });
   };
 
   useEffect(() => {
-    adminApi.listNotifications().then((items) => {
-      setUnread(items.filter((i) => !i.read).length);
-    });
-  }, [location.pathname]);
+    let active = true;
+    api<{ user: { id: string; role: string } | null }>("/auth/me")
+      .then((res) => {
+        if (!active) return;
+        if (!res.user || res.user.role !== "ADMIN") {
+          try {
+            sessionStorage.removeItem("pssa_admin_authed");
+          } catch {
+            // ignore
+          }
+          navigate("/login", { replace: true });
+          return;
+        }
+        try {
+          sessionStorage.setItem("pssa_admin_authed", "true");
+        } catch {
+          // ignore
+        }
+        setAuthChecked(true);
+        adminApi.prefetchCore();
+        void adminApi
+          .listNotifications()
+          .then((items) => {
+            if (active) setUnread(items.filter((i) => !i.read).length);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {
+        try {
+          sessionStorage.removeItem("pssa_admin_authed");
+        } catch {
+          // ignore
+        }
+        if (active) navigate("/login", { replace: true });
+      });
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     return () => {
@@ -459,12 +514,10 @@ export function AdminLayout() {
                 </span>
               </div>
 
-              {adminApi.isMockMode() && (
-                <span className="hidden items-center gap-1.5 rounded-full border border-green/25 bg-green-soft/75 px-3 py-1 text-[11px] font-semibold text-green-dark sm:inline-flex">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" />
-                  Sandbox Live
-                </span>
-              )}
+              <span className="hidden items-center gap-1.5 rounded-full border border-green/25 bg-green-soft/75 px-3 py-1 text-[11px] font-semibold text-green-dark sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-green" />
+                Live API
+              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -494,9 +547,13 @@ export function AdminLayout() {
         </header>
 
         <main className="admin-main-content mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-8 sm:py-7">
-          <div key={location.pathname} className="admin-page-enter">
-            <Outlet />
-          </div>
+          {authChecked ? (
+            <div key={location.pathname} className="admin-page-enter">
+              <Outlet />
+            </div>
+          ) : (
+            <div className="h-48 animate-pulse rounded-3xl bg-white/60" />
+          )}
         </main>
       </div>
     </div>

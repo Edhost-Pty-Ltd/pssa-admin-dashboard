@@ -4,6 +4,7 @@ import Audit from "./pages/Audit";
 import Complaints from "./pages/Complaints";
 import Listings from "./pages/Listings";
 import Login from "./pages/Login";
+import MemberDetail from "./pages/MemberDetail";
 import Notifications from "./pages/Notifications";
 import Overview from "./pages/Overview";
 import Settings from "./pages/Settings";
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="verifications" element={<Verifications />} />
           <Route path="verifications/:id" element={<VerificationDetail />} />
           <Route path="users" element={<Users />} />
+          <Route path="users/:id" element={<MemberDetail />} />
           <Route path="listings" element={<Listings />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="tutorials" element={<Tutorials />} />

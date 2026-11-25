@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Badge, PageHeader } from "../components/ui/Badge";
 import { adminApi } from "../lib/adminApi";
+import { errorMessage } from "../lib/api";
 import type { ExamOption, ExamQuestionRecord, TutorialRecord } from "../types/admin";
 
 function formatDuration(seconds: number | null): string {
@@ -27,6 +28,8 @@ export default function Tutorials() {
   // Upload video modal
   const [uploadOpen, setUploadOpen] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoVersion, setVideoVersion] = useState("1");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<string>("");
   const [uploading, setUploading] = useState(false);
@@ -34,6 +37,8 @@ export default function Tutorials() {
   // Edit video modal
   const [editingVideo, setEditingVideo] = useState<TutorialRecord | null>(null);
   const [editVideoTitle, setEditVideoTitle] = useState("");
+  const [editVideoDescription, setEditVideoDescription] = useState("");
+  const [editVideoVersion, setEditVideoVersion] = useState("1");
   const [editVideoDuration, setEditVideoDuration] = useState("");
 
   // Preview video modal
@@ -94,15 +99,21 @@ export default function Tutorials() {
     try {
       await adminApi.uploadTutorial({
         title: videoTitle.trim(),
+        description: videoDescription.trim() || undefined,
+        version: videoVersion ? Number(videoVersion) : undefined,
         file: videoFile,
         durationSeconds: videoDuration ? Number(videoDuration) : undefined,
       });
       setUploadOpen(false);
       setVideoTitle("");
+      setVideoDescription("");
+      setVideoVersion("1");
       setVideoFile(null);
       setVideoDuration("");
       await load();
       notify("Tutorial video uploaded.");
+    } catch (err) {
+      notify(errorMessage(err));
     } finally {
       setUploading(false);
     }
@@ -111,30 +122,42 @@ export default function Tutorials() {
   const openEditVideo = (t: TutorialRecord) => {
     setEditingVideo(t);
     setEditVideoTitle(t.title);
+    setEditVideoDescription(t.description ?? "");
+    setEditVideoVersion(String(t.version ?? 1));
     setEditVideoDuration(t.durationSeconds ? String(t.durationSeconds) : "");
   };
 
   const saveEditVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVideo || !editVideoTitle.trim()) return;
-    await adminApi.updateTutorial(editingVideo.id, {
-      title: editVideoTitle.trim(),
-      durationSeconds: editVideoDuration ? Number(editVideoDuration) : null,
-    });
-    setEditingVideo(null);
-    await load();
-    notify("Tutorial metadata updated.");
+    try {
+      await adminApi.updateTutorial(editingVideo.id, {
+        title: editVideoTitle.trim(),
+        description: editVideoDescription.trim() || null,
+        version: editVideoVersion ? Number(editVideoVersion) : undefined,
+        durationSeconds: editVideoDuration ? Number(editVideoDuration) : null,
+      });
+      setEditingVideo(null);
+      await load();
+      notify("Tutorial metadata updated.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   const toggleActiveVideo = async (t: TutorialRecord) => {
-    if (t.isActive) {
-      await adminApi.updateTutorial(t.id, { isActive: false });
-      notify("Tutorial moved to Draft.");
-    } else {
-      await adminApi.activateTutorial(t.id);
-      notify("Tutorial activated for applicants.");
+    try {
+      if (t.isActive) {
+        await adminApi.updateTutorial(t.id, { isActive: false });
+        notify("Tutorial moved to Draft.");
+      } else {
+        await adminApi.activateTutorial(t.id);
+        notify("Tutorial activated for applicants.");
+      }
+      await load();
+    } catch (err) {
+      notify(errorMessage(err));
     }
-    await load();
   };
 
   const openNewQuestion = () => {
@@ -165,43 +188,55 @@ export default function Tutorials() {
     e.preventDefault();
     if (!qTopic.trim() || !qPrompt.trim() || qOptions.some((o) => !o.label.trim())) return;
 
-    if (editingQuestion) {
-      await adminApi.updateExamQuestion(editingQuestion.id, {
-        topic: qTopic.trim(),
-        prompt: qPrompt.trim(),
-        options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
-        correctOptionId: qCorrectId,
-        isCritical: qCritical,
-        isActive: qActive,
-        sortOrder: qSortOrder,
-      });
-      notify("Assessment question updated.");
-    } else {
-      await adminApi.createExamQuestion({
-        topic: qTopic.trim(),
-        prompt: qPrompt.trim(),
-        options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
-        correctOptionId: qCorrectId,
-        isCritical: qCritical,
-        isActive: qActive,
-        sortOrder: qSortOrder,
-      });
-      notify("Assessment question added.");
+    try {
+      if (editingQuestion) {
+        await adminApi.updateExamQuestion(editingQuestion.id, {
+          topic: qTopic.trim(),
+          prompt: qPrompt.trim(),
+          options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
+          correctOptionId: qCorrectId,
+          isCritical: qCritical,
+          isActive: qActive,
+          sortOrder: qSortOrder,
+        });
+        notify("Assessment question updated.");
+      } else {
+        await adminApi.createExamQuestion({
+          topic: qTopic.trim(),
+          prompt: qPrompt.trim(),
+          options: qOptions.map((o) => ({ ...o, label: o.label.trim() })),
+          correctOptionId: qCorrectId,
+          isCritical: qCritical,
+          isActive: qActive,
+          sortOrder: qSortOrder,
+        });
+        notify("Assessment question added.");
+      }
+      setQuestionModalOpen(false);
+      await load();
+    } catch (err) {
+      notify(errorMessage(err));
     }
-    setQuestionModalOpen(false);
-    await load();
   };
 
   const toggleQuestionActive = async (q: ExamQuestionRecord) => {
-    await adminApi.updateExamQuestion(q.id, { isActive: !q.isActive });
-    await load();
-    notify(q.isActive ? "Question deactivated." : "Question activated.");
+    try {
+      await adminApi.updateExamQuestion(q.id, { isActive: !q.isActive });
+      await load();
+      notify(q.isActive ? "Question deactivated." : "Question activated.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   const removeQuestion = async (q: ExamQuestionRecord) => {
-    await adminApi.deleteExamQuestion(q.id);
-    await load();
-    notify("Question removed.");
+    try {
+      await adminApi.deleteExamQuestion(q.id);
+      await load();
+      notify("Question removed.");
+    } catch (err) {
+      notify(errorMessage(err));
+    }
   };
 
   return (
@@ -273,9 +308,17 @@ export default function Tutorials() {
                   <span className="rounded-md bg-soft px-2.5 py-1 text-[11px] font-semibold text-navy">
                     {t.storagePath}
                   </span>
-                  <Badge tone={t.isActive ? "green" : "amber"}>{t.isActive ? "Active" : "Draft"}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-semibold text-navy">
+                      v{t.version ?? 1}
+                    </span>
+                    <Badge tone={t.isActive ? "green" : "amber"}>{t.isActive ? "Active" : "Draft"}</Badge>
+                  </div>
                 </div>
                 <h2 className="mt-3 text-base font-bold text-navy">{t.title}</h2>
+                {t.description && (
+                  <p className="mt-1 text-xs leading-relaxed text-muted">{t.description}</p>
+                )}
                 <p className="mt-1.5 flex items-center gap-2 text-xs text-muted">
                   <Icon name="clock" size={14} /> {formatDuration(t.durationSeconds)} · Added{" "}
                   {t.createdAt.slice(0, 10)}
@@ -412,6 +455,28 @@ export default function Tutorials() {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-navy">Description (optional)</label>
+                <textarea
+                  rows={2}
+                  value={videoDescription}
+                  onChange={(e) => setVideoDescription(e.target.value)}
+                  placeholder="Brief overview of what applicants learn in this tutorial"
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-navy">Version</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={videoVersion}
+                  onChange={(e) => setVideoVersion(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                />
+              </div>
+
+              <div>
                 <label className="text-xs font-semibold text-navy">Video File</label>
                 <input
                   required
@@ -471,14 +536,35 @@ export default function Tutorials() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-navy">Duration (seconds)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editVideoDuration}
-                  onChange={(e) => setEditVideoDuration(e.target.value)}
+                <label className="text-xs font-semibold text-navy">Description (optional)</label>
+                <textarea
+                  rows={2}
+                  value={editVideoDescription}
+                  onChange={(e) => setEditVideoDescription(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-navy">Version</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editVideoVersion}
+                    onChange={(e) => setEditVideoVersion(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-navy">Duration (seconds)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editVideoDuration}
+                    onChange={(e) => setEditVideoDuration(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
