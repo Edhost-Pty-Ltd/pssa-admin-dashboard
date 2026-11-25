@@ -60,7 +60,7 @@ export default function Overview() {
     return (
       <div className="space-y-6">
         <div className="h-44 animate-pulse rounded-3xl bg-navy/10" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-32 animate-pulse rounded-2xl bg-white/70" />
           ))}
@@ -71,7 +71,6 @@ export default function Overview() {
 
   const pendingApps = data.applications.filter((a) => a.status === "PENDING" || a.status === "UNDER_REVIEW");
   const activeMembers = data.members.filter((m) => m.status === "ACTIVE");
-  const activeListings = data.listings.filter((l) => l.status === "ACTIVE");
   const openCases = data.cases.filter((c) => c.status !== "RESOLVED");
 
   const stats: {
@@ -99,24 +98,13 @@ export default function Overview() {
     {
       label: "Verified Shoppers",
       value: activeMembers.length,
-      sub: `${data.listings.length} verified specialty profiles`,
+      sub: `${data.members.length} total registered shoppers`,
       to: "/admin/users",
       icon: "badge",
       iconBg: "bg-sand/70 text-navy",
       barColor: "bg-navy",
       barPct: Math.min(100, Math.round((activeMembers.length / Math.max(1, data.members.length)) * 100)),
       accent: "text-green-dark",
-    },
-    {
-      label: "Specialty Profiles",
-      value: activeListings.length,
-      sub: `${data.listings.length} total shopper profiles`,
-      to: "/admin/listings",
-      icon: "listings",
-      iconBg: "bg-[#eaf3fb] text-navy-2",
-      barColor: "bg-navy-3",
-      barPct: Math.min(100, Math.round((activeListings.length / Math.max(1, data.listings.length)) * 100)),
-      accent: "text-navy",
     },
     {
       label: "Safety & Policy Cases",
@@ -199,7 +187,7 @@ export default function Overview() {
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s, idx) => (
           <Link
             key={s.label}
@@ -318,45 +306,7 @@ export default function Overview() {
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12">
-        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Verified Specialties</p>
-              <h2 className="mt-0.5 font-display text-xl font-semibold text-navy">Shopper Profiles</h2>
-            </div>
-            <Link
-              to="/admin/listings"
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-soft/70 px-3 py-1 text-xs font-semibold text-navy transition hover:border-green/40 hover:bg-green-soft/60 hover:text-green-dark"
-            >
-              Manage profiles
-              <Icon name="arrow" size={13} />
-            </Link>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {data.listings.map((l) => (
-              <div
-                key={l.id}
-                className="flex flex-col justify-between rounded-xl border border-line/80 bg-soft/45 p-4 transition hover:border-green/35 hover:bg-white hover:shadow-sm"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-bold tracking-wide text-navy">{l.categoryName}</span>
-                    <Badge tone={statusTone(l.status)}>{l.status}</Badge>
-                  </div>
-                  <p className="mt-2 font-semibold text-navy">{l.title}</p>
-                  <p className="mt-0.5 text-xs text-muted">{l.shopperName} · {l.city}</p>
-                </div>
-                <p className="mt-3 line-clamp-2 border-t border-line/70 pt-2.5 text-[11px] text-ink">
-                  {l.specialtySummary}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-6">
+        <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-green-dark">Scam Prevention</p>
@@ -371,36 +321,41 @@ export default function Overview() {
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {data.cases.map((c) => {
-              const stripe =
-                c.severity === "HIGH"
-                  ? "border-l-[#b42318]"
-                  : c.severity === "MEDIUM"
-                    ? "border-l-[#d97706]"
-                    : "border-l-green";
-              return (
-                <div
-                  key={c.id}
-                  className={`rounded-xl border border-line/80 border-l-4 ${stripe} bg-soft/45 p-3.5 transition hover:bg-white hover:shadow-sm`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-navy">{c.caseNumber}</span>
-                    <div className="flex items-center gap-1.5">
-                      <Badge tone={statusTone(c.severity)}>{c.severity}</Badge>
-                      <Badge tone={statusTone(c.status)}>{c.status}</Badge>
+          {data.cases.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line bg-soft/40 p-4 text-center text-xs text-muted">
+              No safety or policy cases reported.
+            </p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {data.cases.map((c) => {
+                const stripe =
+                  c.severity === "HIGH"
+                    ? "border-l-[#b42318]"
+                    : c.severity === "MEDIUM"
+                      ? "border-l-[#d97706]"
+                      : "border-l-green";
+                return (
+                  <div
+                    key={c.id}
+                    className={`rounded-xl border border-line/80 border-l-4 ${stripe} bg-soft/45 p-3.5 transition hover:bg-white hover:shadow-sm`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-navy">{c.caseNumber}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Badge tone={statusTone(c.severity)}>{c.severity}</Badge>
+                        <Badge tone={statusTone(c.status)}>{c.status}</Badge>
+                      </div>
                     </div>
+                    <p className="mt-2 text-xs leading-relaxed text-ink">{c.summary}</p>
+                    <p className="mt-2 text-[11px] text-muted">
+                      Reported by <span className="font-semibold text-navy">{c.reporterName}</span> · Against: {c.againstMember}
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-ink">{c.summary}</p>
-                  <p className="mt-2 text-[11px] text-muted">
-                    Reported by <span className="font-semibold text-navy">{c.reporterName}</span> · Against: {c.againstMember}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
-      </div>
     </div>
   );
 }

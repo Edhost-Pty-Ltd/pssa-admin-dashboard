@@ -3,6 +3,8 @@ import type {
   ApplicationDocType,
   ApplicationStatus,
   AuditEntry,
+  CaseDetailRecord,
+  CaseOutcome,
   CaseRecord,
   CaseStatus,
   DocumentStatus,
@@ -720,6 +722,27 @@ export const adminApi = {
     });
   },
 
+  async getCaseDetail(id: string): Promise<CaseDetailRecord> {
+    const res = await api<{ complaint: CaseDetailRecord }>(`/admin/complaints/${id}`);
+    return res.complaint;
+  },
+
+  async decideCase(id: string, outcome: CaseOutcome, reasons: string): Promise<void> {
+    await api(`/admin/complaints/${id}/decision`, {
+      method: "POST",
+      body: { outcome, reasons: reasons.trim(), conflictDeclared: true },
+    });
+    invalidate("overview", "cases", "members", "audit");
+  },
+
+  async decideCaseAppeal(id: string, decision: string, reasons: string): Promise<void> {
+    await api(`/admin/complaints/${id}/appeal-decision`, {
+      method: "POST",
+      body: { decision: decision.trim(), reasons: reasons.trim(), conflictDeclared: true },
+    });
+    invalidate("overview", "cases", "members", "audit");
+  },
+
   async updateCase(id: string, status: CaseStatus, resolutionNotes: string): Promise<void> {
     const trimmed = resolutionNotes.trim();
     if (status === "RESOLVED") {
@@ -756,9 +779,17 @@ export const adminApi = {
     });
   },
 
-  async uploadTutorial(input: { title: string; file: File; durationSeconds?: number }): Promise<TutorialRecord> {
+  async uploadTutorial(input: {
+    title: string;
+    description?: string;
+    version?: number;
+    file: File;
+    durationSeconds?: number;
+  }): Promise<TutorialRecord> {
     const form = new FormData();
     form.append("title", input.title);
+    if (input.description?.trim()) form.append("description", input.description.trim());
+    if (input.version !== undefined) form.append("version", String(input.version));
     if (input.durationSeconds) form.append("durationSeconds", String(input.durationSeconds));
     form.append("file", input.file);
     const res = await api<{ tutorial: TutorialRecord }>("/tutorials", { method: "POST", form });
@@ -768,7 +799,13 @@ export const adminApi = {
 
   async updateTutorial(
     id: string,
-    patch: { title?: string; durationSeconds?: number | null; isActive?: boolean },
+    patch: {
+      title?: string;
+      description?: string | null;
+      version?: number;
+      durationSeconds?: number | null;
+      isActive?: boolean;
+    },
   ): Promise<TutorialRecord> {
     const res = await api<{ tutorial: TutorialRecord }>(`/tutorials/${id}`, { method: "PATCH", body: patch });
     invalidate("tutorials");
