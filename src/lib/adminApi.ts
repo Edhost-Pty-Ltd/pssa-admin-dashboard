@@ -3,6 +3,8 @@ import type {
   ApplicationDocType,
   ApplicationStatus,
   AuditEntry,
+  CaseDetailRecord,
+  CaseOutcome,
   CaseRecord,
   CaseStatus,
   DocumentStatus,
@@ -716,6 +718,27 @@ export const adminApi = {
       const res = await api<{ items: BackendComplaintItem[] }>("/admin/complaints?pageSize=50");
       return res.items.map(mapComplaint);
     });
+  },
+
+  async getCaseDetail(id: string): Promise<CaseDetailRecord> {
+    const res = await api<{ complaint: CaseDetailRecord }>(`/admin/complaints/${id}`);
+    return res.complaint;
+  },
+
+  async decideCase(id: string, outcome: CaseOutcome, reasons: string): Promise<void> {
+    await api(`/admin/complaints/${id}/decision`, {
+      method: "POST",
+      body: { outcome, reasons: reasons.trim(), conflictDeclared: true },
+    });
+    invalidate("overview", "cases", "members", "audit");
+  },
+
+  async decideCaseAppeal(id: string, decision: string, reasons: string): Promise<void> {
+    await api(`/admin/complaints/${id}/appeal-decision`, {
+      method: "POST",
+      body: { decision: decision.trim(), reasons: reasons.trim(), conflictDeclared: true },
+    });
+    invalidate("overview", "cases", "members", "audit");
   },
 
   async updateCase(id: string, status: CaseStatus, resolutionNotes: string): Promise<void> {
