@@ -7,7 +7,6 @@ import MemberDetail from "./pages/MemberDetail";
 import Notifications from "./pages/Notifications";
 import Overview from "./pages/Overview";
 import Renewals from "./pages/Renewals";
-import Settings from "./pages/Settings";
 import Tutorials from "./pages/Tutorials";
 import Users from "./pages/Users";
 import VerificationDetail from "./pages/VerificationDetail";
