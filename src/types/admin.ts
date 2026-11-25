@@ -266,6 +266,7 @@ export interface AdminSettings {
   verificationSlaHours: number;
   autoPublishApprovedListings: boolean;
   requireIdVerification: boolean;
+  practicalPassThreshold?: number;
 }
 
 export interface RenewalRecord {

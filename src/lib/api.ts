@@ -59,7 +59,6 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 export const errorMessage = (error: unknown) =>
   error instanceof ApiError ? error.message : error instanceof Error ? error.message : "Something went wrong.";
 
-/** Builds a query string, skipping empty values. */
 export function qs(params: Record<string, string | number | boolean | undefined | null>) {
   const search = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {

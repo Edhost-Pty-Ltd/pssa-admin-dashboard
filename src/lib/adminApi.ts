@@ -885,17 +885,157 @@ export const adminApi = {
   },
 
   async getSettings(): Promise<AdminSettings> {
-    return {
-      associationName: "Personal Shoppers & Sourcing Association",
-      supportEmail: "compliance@pssa.org.za",
-      annualMembershipFeeZar: 1200,
-      verificationSlaHours: 48,
-      autoPublishApprovedListings: true,
-      requireIdVerification: true,
-    };
+    return api<AdminSettings>("/admin/settings");
   },
 
   async saveSettings(next: AdminSettings): Promise<AdminSettings> {
-    return next;
+    const saved = await api<AdminSettings>("/admin/settings", {
+      method: "PUT",
+      body: next,
+    });
+    invalidate("audit");
+    return saved;
+  },
+
+  async listPracticalAssets() {
+    return api<{
+      assets: {
+        id: string;
+        kind: "tutorial_video" | "assignment_brief" | "assessor_guide";
+        version: number;
+        title: string;
+        fileName: string;
+        mimeType: string;
+        sizeBytes: number;
+        isActive: boolean;
+        isDefault: boolean;
+        createdAt: string;
+        fileUrl: string;
+        uploadedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+      }[];
+      practicalPassThreshold: number;
+    }>("/admin/practical-assessment/assets");
+  },
+
+  async uploadPracticalAsset(
+    kind: "tutorial_video" | "assignment_brief" | "assessor_guide",
+    file: File,
+    title?: string,
+    activate = true,
+  ) {
+    const form = new FormData();
+    form.append("file", file);
+    if (title?.trim()) form.append("title", title.trim());
+    form.append("activate", String(activate));
+    const res = await api<{ asset: unknown }>(`/admin/practical-assessment/assets/${kind}/upload`, {
+      method: "POST",
+      form,
+    });
+    invalidate("audit");
+    return res;
+  },
+
+  async activatePracticalAsset(id: string) {
+    const res = await api<{ asset: unknown }>(`/admin/practical-assessment/assets/${encodeURIComponent(id)}/activate`, {
+      method: "POST",
+      body: {},
+    });
+    invalidate("audit");
+    return res;
+  },
+
+  async deactivatePracticalAsset(id: string) {
+    const res = await api<{ asset: unknown }>(`/admin/practical-assessment/assets/${encodeURIComponent(id)}/deactivate`, {
+      method: "POST",
+      body: {},
+    });
+    invalidate("audit");
+    return res;
+  },
+
+  async listPracticalSubmissions(params?: { status?: string; q?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.q) qs.set("q", params.q);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return api<{
+      submissions: {
+        id: string;
+        status: string;
+        serviceTrack: string | null;
+        tutorialVersion: number;
+        assignmentVersion: number;
+        tutorialWatched: boolean;
+        submittedAt: string | null;
+        reviewedAt: string | null;
+        totalScore: number | null;
+        passThresholdUsed: number | null;
+        hasEvidence: boolean;
+        applicant: {
+          memberProfileId: string;
+          name: string;
+          email: string;
+          tradingName: string | null;
+          declaredScope: string | null;
+          memberStatus: string | null;
+        };
+        reviewer: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+      }[];
+      practicalPassThreshold: number;
+      rubricAreas: { key: string; label: string; maxPoints: number; guidance: string }[];
+      tracks: { id: string; code: string; label: string; budgetZar: number; summary: string }[];
+    }>(`/admin/practical-assessment/submissions${suffix}`);
+  },
+
+  async getPracticalSubmission(id: string) {
+    return api<{
+      submission: {
+        id: string;
+        status: string;
+        serviceTrack: string | null;
+        tutorialVersion: number;
+        assignmentVersion: number;
+        tutorialWatched: boolean;
+        tutorialWatchedAt: string | null;
+        answers: Record<string, any> | null;
+        evidence: { fileName: string | null; mimeType: string | null; sizeBytes: number | null; url: string } | null;
+        submittedAt: string | null;
+        reviewedAt: string | null;
+        rubricScores: Record<string, number> | null;
+        totalScore: number | null;
+        passThresholdUsed: number | null;
+        reviewerFeedback: string | null;
+        reviewer: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+        applicant: {
+          memberProfileId: string;
+          name: string;
+          email: string;
+          tradingName: string | null;
+          declaredScope: string | null;
+          memberStatus: string | null;
+          application: { id: string; number: string; status: string } | null;
+        };
+      };
+      practicalPassThreshold: number;
+      rubricAreas: { key: string; label: string; maxPoints: number; guidance: string }[];
+      tracks: { id: string; code: string; label: string; budgetZar: number; summary: string }[];
+      audit: { id: string; action: string; reason: string | null; createdAt: string; actor: { email: string; firstName: string | null; lastName: string | null } | null }[];
+    }>(`/admin/practical-assessment/submissions/${encodeURIComponent(id)}`);
+  },
+
+  async reviewPracticalSubmission(
+    id: string,
+    payload: {
+      outcome: "UNDER_REVIEW" | "PASSED" | "NEEDS_RESUBMISSION" | "NOT_PASSED";
+      rubricScores?: Record<string, number>;
+      reviewerFeedback?: string;
+    },
+  ) {
+    const res = await api<{ submission: unknown }>(
+      `/admin/practical-assessment/submissions/${encodeURIComponent(id)}/review`,
+      { method: "POST", body: payload },
+    );
+    invalidate("audit", "overview", "applications", "members");
+    return res;
   },
 };
