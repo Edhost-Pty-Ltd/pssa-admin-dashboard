@@ -859,18 +859,42 @@ export const adminApi = {
           action: string;
           entityType: string;
           entityId: string;
-          createdAt: string;
-          actor: { firstName: string; lastName: string; email: string } | null;
+          at?: string;
+          createdAt?: string;
+          reason?: string | null;
+          actor: { firstName: string | null; lastName: string | null; email: string } | null;
         }[];
       }>("/admin/audit?pageSize=50");
-      return res.items.map((item) => ({
-        id: item.id,
-        actor: item.actor ? `${item.actor.firstName} ${item.actor.lastName}`.trim() || item.actor.email : "System",
-        action: item.action,
-        target: `${item.entityType} (${item.entityId})`,
-        category: "VERIFICATION",
-        timestamp: item.createdAt.slice(0, 16).replace("T", " "),
-      }));
+
+      const mapCategory = (entityType: string, action: string): AuditEntry["category"] => {
+        const key = `${entityType} ${action}`.toLowerCase();
+        if (key.includes("tutorial")) return "TUTORIAL";
+        if (key.includes("exam") || key.includes("practical") || key.includes("assessment")) return "ASSESSMENT";
+        if (key.includes("case") || key.includes("complaint")) return "CASE";
+        if (key.includes("listing")) return "LISTING";
+        if (key.includes("category")) return "CATEGORY";
+        if (key.includes("setting")) return "SETTINGS";
+        if (key.includes("member") || key.includes("renewal")) return "MEMBER";
+        return "VERIFICATION";
+      };
+
+      return res.items.map((item) => {
+        const ts = item.at ?? item.createdAt ?? "";
+        const actorName = item.actor
+          ? [item.actor.firstName, item.actor.lastName].filter(Boolean).join(" ").trim() || item.actor.email
+          : "System";
+        const target = item.reason
+          ? `${item.entityType} (${item.entityId}) — ${item.reason}`
+          : `${item.entityType} (${item.entityId})`;
+        return {
+          id: item.id,
+          actor: actorName,
+          action: item.action,
+          target,
+          category: mapCategory(item.entityType, item.action),
+          timestamp: ts ? ts.slice(0, 16).replace("T", " ") : "—",
+        };
+      });
     });
   },
 
