@@ -8,6 +8,7 @@ import type {
   CaseRecord,
   CaseStatus,
   DocumentStatus,
+  ExamDocumentRecord,
   ExamQuestionRecord,
   ListingRecord,
   ListingStatus,
@@ -922,17 +923,55 @@ export const adminApi = {
   },
 
   async getSettings(): Promise<AdminSettings> {
-    return {
-      associationName: "Personal Shoppers & Sourcing Association",
-      supportEmail: "compliance@pssa.org.za",
-      annualMembershipFeeZar: 1200,
-      verificationSlaHours: 48,
-      autoPublishApprovedListings: true,
-      requireIdVerification: true,
-    };
+    return api<AdminSettings>("/admin/settings");
   },
 
   async saveSettings(next: AdminSettings): Promise<AdminSettings> {
-    return next;
+    const saved = await api<AdminSettings>("/admin/settings", {
+      method: "PUT",
+      body: next,
+    });
+    invalidate("audit");
+    return saved;
+  },
+
+  async listExamDocuments(): Promise<ExamDocumentRecord[]> {
+    return cached("examDocuments", async () => {
+      const res = await api<{
+        assets: (ExamDocumentRecord & { kind: string })[];
+      }>("/admin/practical-assessment/assets");
+      return res.assets.filter((a) => a.kind === "assignment_brief");
+    });
+  },
+
+  async uploadExamDocument(input: { title?: string; file: File; activate?: boolean }): Promise<ExamDocumentRecord> {
+    const form = new FormData();
+    form.append("file", input.file);
+    if (input.title?.trim()) form.append("title", input.title.trim());
+    form.append("activate", String(input.activate ?? true));
+    const res = await api<{ asset: ExamDocumentRecord }>("/admin/practical-assessment/assets/assignment_brief/upload", {
+      method: "POST",
+      form,
+    });
+    invalidate("examDocuments", "audit");
+    return res.asset;
+  },
+
+  async activateExamDocument(id: string): Promise<ExamDocumentRecord> {
+    const res = await api<{ asset: ExamDocumentRecord }>(
+      `/admin/practical-assessment/assets/${encodeURIComponent(id)}/activate`,
+      { method: "POST", body: {} },
+    );
+    invalidate("examDocuments", "audit");
+    return res.asset;
+  },
+
+  async deactivateExamDocument(id: string): Promise<ExamDocumentRecord> {
+    const res = await api<{ asset: ExamDocumentRecord }>(
+      `/admin/practical-assessment/assets/${encodeURIComponent(id)}/deactivate`,
+      { method: "POST", body: {} },
+    );
+    invalidate("examDocuments", "audit");
+    return res.asset;
   },
 };

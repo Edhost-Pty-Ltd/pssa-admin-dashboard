@@ -299,6 +299,19 @@ export interface AdminSettings {
   requireIdVerification: boolean;
 }
 
+export interface ExamDocumentRecord {
+  id: string;
+  version: number;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  isActive: boolean;
+  createdAt: string;
+  fileUrl: string;
+  uploadedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
+}
+
 export interface RenewalRecord {
   id: string;
   memberProfileId: string;
