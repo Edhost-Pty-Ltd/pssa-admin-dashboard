@@ -20,6 +20,35 @@ export type MemberStatus = "ACTIVE" | "SUSPENDED" | "PROBATION";
 export type MemberTier = "FOUNDING" | "VERIFIED" | "ASSOCIATE";
 export type ListingStatus = "ACTIVE" | "PENDING" | "PAUSED" | "FLAGGED";
 export type CaseStatus = "OPEN" | "INVESTIGATING" | "ESCALATED" | "RESOLVED";
+export type CaseOutcome = "no_breach" | "corrective_action" | "suspension" | "revocation";
+
+export interface CaseDetailRecord {
+  id: string;
+  referenceNumber: string;
+  type: string;
+  status: string;
+  description: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  outcome: CaseOutcome | null;
+  reasons: string | null;
+  evidence: { id: string; originalName: string; mimeType: string; sizeBytes: number; uploadedAt: string }[];
+  responses: {
+    id: string;
+    body: string;
+    createdAt: string;
+    member: { firstName: string; lastName: string; tradingName: string | null } | null;
+  }[];
+  appeals: {
+    id: string;
+    reason: string;
+    lodgedAt: string;
+    decidedAt: string | null;
+    decision: string | null;
+    reasons: string | null;
+  }[];
+}
 
 export type ApplicationDocType =
   | "id_document"
@@ -166,6 +195,8 @@ export interface CaseRecord {
 export interface TutorialRecord {
   id: string;
   title: string;
+  description: string | null;
+  version: number;
   durationSeconds: number | null;
   isActive: boolean;
   storagePath: string;

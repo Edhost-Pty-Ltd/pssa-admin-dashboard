@@ -36,6 +36,8 @@ export default function Tutorials() {
   // Upload video modal
   const [uploadOpen, setUploadOpen] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoVersion, setVideoVersion] = useState("1");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<string>("");
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -43,6 +45,8 @@ export default function Tutorials() {
   // Edit video modal
   const [editingVideo, setEditingVideo] = useState<TutorialRecord | null>(null);
   const [editVideoTitle, setEditVideoTitle] = useState("");
+  const [editVideoDescription, setEditVideoDescription] = useState("");
+  const [editVideoVersion, setEditVideoVersion] = useState("1");
   const [editVideoDuration, setEditVideoDuration] = useState("");
 
   // Preview video modal
@@ -122,11 +126,15 @@ export default function Tutorials() {
     try {
       await adminApi.uploadTutorial({
         title: videoTitle.trim(),
+        description: videoDescription.trim() || undefined,
+        version: videoVersion ? Number(videoVersion) : undefined,
         file: videoFile,
         durationSeconds: videoDuration ? Number(videoDuration) : undefined,
       });
       setUploadOpen(false);
       setVideoTitle("");
+      setVideoDescription("");
+      setVideoVersion("1");
       setVideoFile(null);
       setVideoDuration("");
       await load();
@@ -141,6 +149,8 @@ export default function Tutorials() {
   const openEditVideo = (t: TutorialRecord) => {
     setEditingVideo(t);
     setEditVideoTitle(t.title);
+    setEditVideoDescription(t.description ?? "");
+    setEditVideoVersion(String(t.version ?? 1));
     setEditVideoDuration(t.durationSeconds ? String(t.durationSeconds) : "");
   };
 
@@ -150,6 +160,8 @@ export default function Tutorials() {
     try {
       await adminApi.updateTutorial(editingVideo.id, {
         title: editVideoTitle.trim(),
+        description: editVideoDescription.trim() || null,
+        version: editVideoVersion ? Number(editVideoVersion) : undefined,
         durationSeconds: editVideoDuration ? Number(editVideoDuration) : null,
       });
       setEditingVideo(null);
@@ -606,6 +618,28 @@ export default function Tutorials() {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-navy">Description (optional)</label>
+                <textarea
+                  rows={2}
+                  value={videoDescription}
+                  onChange={(e) => setVideoDescription(e.target.value)}
+                  placeholder="Brief overview of what applicants learn in this tutorial"
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-navy">Version</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={videoVersion}
+                  onChange={(e) => setVideoVersion(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                />
+              </div>
+
+              <div>
                 <label className="text-xs font-semibold text-navy">Video File</label>
                 <input
                   required
@@ -729,14 +763,35 @@ export default function Tutorials() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-navy">Duration (seconds)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editVideoDuration}
-                  onChange={(e) => setEditVideoDuration(e.target.value)}
+                <label className="text-xs font-semibold text-navy">Description (optional)</label>
+                <textarea
+                  rows={2}
+                  value={editVideoDescription}
+                  onChange={(e) => setEditVideoDescription(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-navy">Version</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editVideoVersion}
+                    onChange={(e) => setEditVideoVersion(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-navy">Duration (seconds)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editVideoDuration}
+                    onChange={(e) => setEditVideoDuration(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-green focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">

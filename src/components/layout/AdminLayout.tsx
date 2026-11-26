@@ -23,9 +23,8 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     ],
   },
   {
-    heading: "Trust & Profiles",
+    heading: "Trust & Safety",
     items: [
-      { to: "/admin/listings", label: "Shopper Profiles", icon: "listings" },
       { to: "/admin/complaints", label: "Cases & Safety", icon: "flag" },
     ],
   },
@@ -35,7 +34,6 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
       { to: "/admin/tutorials", label: "Tutorials", icon: "play" },
       { to: "/admin/audit", label: "Audit Log", icon: "audit" },
       { to: "/admin/notifications", label: "Notifications", icon: "bell" },
-      { to: "/admin/settings", label: "Settings", icon: "settings" },
     ],
   },
 ];
@@ -87,7 +85,6 @@ function getAmbientProfile(pathname: string): AmbientProfile {
   }
   if (
     pathname.startsWith("/admin/audit") ||
-    pathname.startsWith("/admin/settings") ||
     pathname.startsWith("/admin/tutorials") ||
     pathname.startsWith("/admin/notifications")
   ) {
