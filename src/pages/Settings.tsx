@@ -70,25 +70,6 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-navy">
-                Practical Assessment Suggested Pass Threshold (/100)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={settings.practicalPassThreshold ?? 70}
-                onChange={(e) => setSettings({ ...settings, practicalPassThreshold: Number(e.target.value) })}
-                className="w-full rounded-xl border border-line px-3.5 py-2 text-sm focus:border-green focus:outline-none"
-              />
-              <p className="mt-1 text-[11px] text-muted">
-                Configurable pilot threshold (suggested 70/100); reviewers still select the final outcome explicitly.
-              </p>
-            </div>
-          </div>
-
           <div className="space-y-2.5 pt-2">
             <label className="flex items-center gap-2.5 text-sm font-medium text-navy">
               <input

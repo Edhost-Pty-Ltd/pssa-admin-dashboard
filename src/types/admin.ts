@@ -266,7 +266,19 @@ export interface AdminSettings {
   verificationSlaHours: number;
   autoPublishApprovedListings: boolean;
   requireIdVerification: boolean;
-  practicalPassThreshold?: number;
+}
+
+export interface ExamDocumentRecord {
+  id: string;
+  version: number;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  isActive: boolean;
+  createdAt: string;
+  fileUrl: string;
+  uploadedBy: { id: string; email: string; firstName: string | null; lastName: string | null } | null;
 }
 
 export interface RenewalRecord {
