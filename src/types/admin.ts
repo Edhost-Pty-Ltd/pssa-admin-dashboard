@@ -139,6 +139,9 @@ export interface VerificationApplication {
   createdAt: string;
   reviewerNotes: string;
   completionPercent: number;
+  submissionCompletionPercent?: number;
+  canRecordApproval?: boolean;
+  activationGates?: { key: string; label: string; passed: boolean; detail: string }[];
   emailVerifiedAt: string | null;
   phoneVerifiedAt: string | null;
   conductAcceptedAt: string | null;

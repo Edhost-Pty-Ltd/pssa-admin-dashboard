@@ -99,7 +99,12 @@ export default function VerificationDetail() {
   const failedAttempts = app.assessments.filter((a) => !a.passed).length;
   const contactReady = Boolean(app.emailVerifiedAt && app.phoneVerifiedAt && app.conductAcceptedAt);
   const isOnboarding = app.referenceCode === "ONBOARDING";
-  const gatesReady = !isOnboarding && docsReady && channelReady && assessmentPassed && contactReady;
+  const gatesReady =
+    !isOnboarding &&
+    (app.canRecordApproval !== undefined
+      ? app.canRecordApproval
+      : docsReady && assessmentPassed && contactReady);
+  const submissionPercent = app.submissionCompletionPercent ?? app.completionPercent;
 
   const actions = ACTIONS[app.status] ?? [];
   const needsReason = decision === "INFO_REQUIRED" || decision === "REJECTED" || decision === "SUSPENDED";
@@ -180,11 +185,16 @@ export default function VerificationDetail() {
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-line bg-white p-6">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-navy">Admission Gates</h2>
-              <Badge tone={gatesReady ? "green" : "amber"}>
-                {app.completionPercent}% Complete
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={submissionPercent === 100 ? "green" : "amber"}>
+                  Applicant: {submissionPercent}% Submitted
+                </Badge>
+                <Badge tone={gatesReady ? "green" : "amber"}>
+                  Activation: {app.completionPercent}%
+                </Badge>
+              </div>
             </div>
             <div className="grid gap-5 sm:grid-cols-3">
               <div>

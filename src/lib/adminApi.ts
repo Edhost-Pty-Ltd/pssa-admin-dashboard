@@ -492,11 +492,21 @@ export const adminApi = {
             reviewer: { firstName: string; lastName: string; email: string };
           }[];
         };
-        activation: { ready: boolean; gates: { id: string; passed: boolean }[] };
+        activation: {
+          ready?: boolean;
+          canActivate?: boolean;
+          canRecordApproval?: boolean;
+          gates: { key?: string; id?: string; label?: string; passed: boolean; detail?: string }[];
+        };
       }>(`/admin/applications/${id}`),
-      api<{ tutorial: { completed?: boolean; watchedCount?: number; totalCount?: number } | null }>(
-        `/admin/applications/${id}/tutorial`,
-      ).catch(() => ({ tutorial: null })),
+      api<{
+        tutorial: {
+          completed?: boolean;
+          watchedCount?: number;
+          totalCount?: number;
+          practicalWatched?: boolean;
+        } | null;
+      }>(`/admin/applications/${id}/tutorial`).catch(() => ({ tutorial: null })),
       api<{
         exam: {
           attempts?: {
@@ -528,6 +538,31 @@ export const adminApi = {
     const completionPercent =
       activation.gates.length > 0 ? Math.round((passedGates / activation.gates.length) * 100) : 0;
 
+    const tutorialCompleted = Boolean(
+      tutorialRes.tutorial?.completed || tutorialRes.tutorial?.practicalWatched,
+    );
+    const tutorialTotal = Math.max(1, tutorialRes.tutorial?.totalCount ?? 1);
+    const tutorialCompletedCount = tutorialCompleted
+      ? Math.max(tutorialRes.tutorial?.watchedCount ?? 0, tutorialTotal)
+      : (tutorialRes.tutorial?.watchedCount ?? 0);
+
+    const hasUploadedDoc = (type: string) => docs.some((d) => d.type === type);
+    const applicantDocsUploaded =
+      hasUploadedDoc("id_document") &&
+      (hasUploadedDoc("proof_of_residence") || hasUploadedDoc("business_registration")) &&
+      hasUploadedDoc("bank_evidence");
+    const applicantExamPassed = (examRes.exam?.attempts ?? []).some((a) => a.passed);
+    const applicantChecks = [
+      Boolean(application.submittedAt),
+      applicantDocsUploaded,
+      Boolean(application.agreementAcceptedAt),
+      tutorialCompleted,
+      applicantExamPassed,
+    ];
+    const submissionCompletionPercent = Math.round(
+      (applicantChecks.filter(Boolean).length / applicantChecks.length) * 100,
+    );
+
     return {
       profile: {
         id: application.id,
@@ -551,6 +586,14 @@ export const adminApi = {
         createdAt: application.createdAt,
         reviewerNotes: "",
         completionPercent,
+        submissionCompletionPercent,
+        canRecordApproval: activation.canRecordApproval,
+        activationGates: activation.gates.map((g) => ({
+          key: g.key ?? g.id ?? "",
+          label: g.label ?? g.key ?? g.id ?? "Gate",
+          passed: g.passed,
+          detail: g.detail ?? "",
+        })),
         emailVerifiedAt: application.submittedAt,
         phoneVerifiedAt: p?.phone ? application.submittedAt : null,
         conductAcceptedAt: application.agreementAcceptedAt,
@@ -572,8 +615,8 @@ export const adminApi = {
           criticalFailed: a.criticalFailed,
         })),
         tutorialProgress: {
-          completed: tutorialRes.tutorial?.watchedCount ?? (tutorialRes.tutorial?.completed ? 1 : 0),
-          total: tutorialRes.tutorial?.totalCount ?? 1,
+          completed: tutorialCompletedCount,
+          total: tutorialTotal,
         },
         decisions: application.reviews.map((r) => ({
           id: r.id,
@@ -859,18 +902,42 @@ export const adminApi = {
           action: string;
           entityType: string;
           entityId: string;
-          createdAt: string;
-          actor: { firstName: string; lastName: string; email: string } | null;
+          at?: string;
+          createdAt?: string;
+          reason?: string | null;
+          actor: { firstName: string | null; lastName: string | null; email: string } | null;
         }[];
       }>("/admin/audit?pageSize=50");
-      return res.items.map((item) => ({
-        id: item.id,
-        actor: item.actor ? `${item.actor.firstName} ${item.actor.lastName}`.trim() || item.actor.email : "System",
-        action: item.action,
-        target: `${item.entityType} (${item.entityId})`,
-        category: "VERIFICATION",
-        timestamp: item.createdAt.slice(0, 16).replace("T", " "),
-      }));
+
+      const mapCategory = (entityType: string, action: string): AuditEntry["category"] => {
+        const key = `${entityType} ${action}`.toLowerCase();
+        if (key.includes("tutorial")) return "TUTORIAL";
+        if (key.includes("exam") || key.includes("practical") || key.includes("assessment")) return "ASSESSMENT";
+        if (key.includes("case") || key.includes("complaint")) return "CASE";
+        if (key.includes("listing")) return "LISTING";
+        if (key.includes("category")) return "CATEGORY";
+        if (key.includes("setting")) return "SETTINGS";
+        if (key.includes("member") || key.includes("renewal")) return "MEMBER";
+        return "VERIFICATION";
+      };
+
+      return res.items.map((item) => {
+        const ts = item.at ?? item.createdAt ?? "";
+        const actorName = item.actor
+          ? [item.actor.firstName, item.actor.lastName].filter(Boolean).join(" ").trim() || item.actor.email
+          : "System";
+        const target = item.reason
+          ? `${item.entityType} (${item.entityId}) — ${item.reason}`
+          : `${item.entityType} (${item.entityId})`;
+        return {
+          id: item.id,
+          actor: actorName,
+          action: item.action,
+          target,
+          category: mapCategory(item.entityType, item.action),
+          timestamp: ts ? ts.slice(0, 16).replace("T", " ") : "—",
+        };
+      });
     });
   },
 
