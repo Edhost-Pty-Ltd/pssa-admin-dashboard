@@ -20,6 +20,9 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? "/api";
+
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const init: RequestInit = {
     method: opts.method ?? (opts.body || opts.form ? "POST" : "GET"),
@@ -30,7 +33,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   };
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, init);
+    res = await fetch(`${API_BASE}${path}`, init);
   } catch (error) {
     if ((error as Error).name === "AbortError") throw error;
     throw new ApiError(0, "We couldn't reach the server. Check your connection and try again.");
